@@ -46,6 +46,9 @@ IPHONE_DIR="iphone-lib"
 ANDROID_DIR="android-lib"
 ANDROID_PLATFORMS="arm arm-v7a mips x86"
 
+TIZEN_DIR="tizen-lib"
+TIZEN_PLATFORMS="arm i386"
+
 usage()
 {
     cat 1>&2 << EOF
@@ -266,6 +269,38 @@ find_android_ndk()
     fi
 
     printf "%s\n" "$result"
+}
+
+build_tizen_toolchain()
+{
+    destination="$1"
+    sdk_root="$2"
+    arch="$3"
+    toolchain="$arch-linux-gnueabi-gcc-4.8"
+
+    case $arch in
+        "arm")
+            platform="$sdk_root/platforms/mobile-2.3/rootstraps/mobile-2.3-device.core"
+            ;;
+        "i386")
+            platform="$sdk_root/platforms/mobile-2.3/rootstraps/mobile-2.3-emulator.core"
+            ;;
+        *)
+            echo "Unsupported arch"
+            exit 1
+            ;;
+    esac
+
+    cd $destination
+    cp -R $sdk_root/tools/$toolchain/$arch-linux-gnueabi $arch-linux-gnueabi
+    cp -R $sdk_root/tools/$toolchain/$arch-linux-gnueabi/bin bin
+    cp -R $sdk_root/tools/$toolchain/$arch-linux-gnueabi/lib lib
+    cp -R $sdk_root/tools/$toolchain/$arch-linux-gnueabi/include include
+    cp -R $sdk_root/tools/$toolchain/libexec libexec
+    cp -R $platform/usr usr
+    cp -R $sdk_root/tools/$toolchain/lib/* lib
+    cp bin/* libexec/gcc/$arch-linux-gnueabi/4.8.3
+    cp -R $platform/lib/* lib
 }
 
 CONFIG_MK="src/config.mk"
@@ -712,6 +747,50 @@ EOF
         cp "$TIGHTDB_HOME/$file_name" ../tightdb_java/realm-jni/build
         (cd ../tightdb_java && rm -rf $dir_name && mkdir $dir_name) || exit 1
         (cd ../tightdb_java/$dir_name && tar xzf "$TIGHTDB_HOME/$file_name") || exit 1
+        ;;
+
+    "build-tizen")
+        auto_configure || exit 1
+
+        export TIGHTDB_HAVE_CONFIG="1"
+        tizen_sdk_home=$(realpath ~/tizen-sdk)
+
+        enable_encryption="$(get_config_param "ENABLE_ENCRYPTION")" || return 1
+        echo "Encryption enabled: ${enable_encryption}"
+
+        export TIGHTDB_ANDROID="1"
+        mkdir -p "$TIZEN_DIR" || exit 1
+        for target in $TIZEN_PLATFORMS; do
+            temp_dir="$(mktemp -d /tmp/tightdb.build-tizen.XXXX)" || exit 1
+            build_tizen_toolchain $temp_dir ~/tizen-sdk $target
+            cc="$temp_dir/bin/gcc"
+            cflags_arch="--sysroot='$temp_dir'"
+            denom="tizen-$target"
+
+            # Build tightdb
+            CC="$cc" $MAKE -C "src/tightdb" CC_IS="gcc" BASE_DENOM="$denom" CFLAGS_ARCH="$cflags_arch" "libtightdb-$denom.a" || exit 1
+
+            cp "src/tightdb/libtightdb-$denom.a" "$TIZEN_DIR" || exit 1
+
+            rm -rf "$temp_dir" || exit 1
+        done
+
+        echo "Copying headers to '$TIZEN_DIR/include'"
+        mkdir -p "$TIZEN_DIR/include" || exit 1
+        cp "src/tightdb.hpp" "$TIZEN_DIR/include/" || exit 1
+        mkdir -p "$TIZEN_DIR/include/tightdb" || exit 1
+        inst_headers="$(cd "src/tightdb" && $MAKE --no-print-directory get-inst-headers)" || exit 1
+        temp_dir="$(mktemp -d /tmp/tightdb.build-android.XXXX)" || exit 1
+        (cd "src/tightdb" && tar czf "$temp_dir/headers.tar.gz" $inst_headers) || exit 1
+        (cd "$TIGHTDB_HOME/$TIZEN_DIR/include/tightdb" && tar xzmf "$temp_dir/headers.tar.gz") || exit 1
+
+        tightdb_version="$(sh build.sh get-version)" || exit
+        dir_name="core-$tightdb_version"
+        file_name="realm-core-tizen-$tightdb_version.tar.gz"
+
+        echo "Create tar.gz file $file_name"
+        rm -f "$TIGHTDB_HOME/$file_name" || exit 1
+        (cd "$TIGHTDB_HOME/$TIZEN_DIR" && tar czf "$TIGHTDB_HOME/$file_name" .) || exit 1
         ;;
 
    "build-cocoa")
