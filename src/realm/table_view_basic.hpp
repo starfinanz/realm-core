@@ -222,7 +222,7 @@ public:
 
     /// Construct BasicTableView<const Tab> from BasicTableView<Tab>.
     ///
-        BasicTableView(BasicTableView<Tab> tv): Base(std::move(tv.m_impl)) {}
+    BasicTableView(BasicTableView<Tab> tv): Base(std::move(tv.m_impl)) {}
 
     /// Assign BasicTableView<Tab> to BasicTableView<const Tab>.
     ///
