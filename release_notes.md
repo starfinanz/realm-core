@@ -2,32 +2,8 @@
 
 ### Bugfixes:
 
-* Lorem ipsum.
-
-### API breaking changes:
-
-* Lorem ipsum.
-
-### Enhancements:
-
-* Lorem ipsum.
-
------------
-
-### Internals:
-
-* Lorem ipsum.
-
-----------------------------------------------
-
-# NEXT RELEASE
-
-### Bugfixes:
-
 * Fixed LinkViews containing incorrect data after a write transaction
   containing a table clear is rolled back.
-* Fixed errors when a changes to a table with an indexed int column are rolled
-  back.
 
 ### API breaking changes:
 
@@ -35,7 +11,7 @@
 
 ### Enhancements:
 
-* Changes the mmap doubling treshold on mobile devices from 128MB to 16MB.
+* Lorem ipsum.
 
 ### Internals:
 
@@ -55,6 +31,50 @@ StringData (in Query, Table::find(), get(), set(), etc) for that column. You can
 also call Table::is_null(), Table::set_null() and StringData::is_null(). This
 upgrades the database file from version 2 to 3 initially the first time a file
 is opened. NOTE NOTE NOTE: This may take some time. It rebuilds all indexes.
+
+----------------------------------------------
+
+# 0.89.5 Release notes
+
+### Bugfixes:
+
+* Fixed errors when a changes to a table with an indexed int column are rolled
+  back.
+
+----------------------------------------------
+
+# 0.89.4 Release notes
+
+### Enhancements:
+
+* Detaching (and thus destroying) row acessors and TableViews can now be done
+  safely from any thread.
+* Improved performance of Query::find_all() with assertions enabled.
+
+----------------------------------------------
+
+# 0.89.3 Release notes
+
+### Bugfixes:
+
+* Fixed incorrect results for Or() when querying via a LinkView with a
+  different order than the target table.
+* Fixed incorrect results when getting the count for a query where the only
+    condition is checking for non-equality to an int.
+
+### Enhancements:
+
+* Automatically log assertion messages to Crashlytics if it's loaded into the
+  current process.
+
+----------------------------------------------
+
+# 0.89.2 Release notes
+
+### Bugfixes:
+
+* Fixed encryption on Android ARM64 devices.
+* Changes the mmap doubling treshold on mobile devices from 128MB to 16MB.
 
 ----------------------------------------------
 
