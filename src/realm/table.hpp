@@ -863,7 +863,7 @@ private:
     typedef std::vector<ColumnBase*> column_accessors;
     column_accessors m_cols;
 
-    mutable std::size_t m_ref_count;
+    mutable std::atomic<std::size_t> m_ref_count;
     mutable const StringIndex* m_primary_key;
 
     // If this table is a root table (has independent descriptor),
