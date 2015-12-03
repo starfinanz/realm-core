@@ -847,23 +847,23 @@ EOF
             if [ "$target" = "arm" -o "$target" = "arm-v7a" ]; then
                 arch="arm"
                 android_prefix="arm"
-                android_toolchain="arm-linux-androideabi-4.8"
+                android_toolchain="arm-linux-androideabi-clang3.5"
             elif [ "$target" = "arm64" ]; then
                 arch="arm64"
                 android_prefix="aarch64"
-                android_toolchain="aarch64-linux-android-4.9"
+                android_toolchain="aarch64-linux-android-clang3.5"
             elif [ "$target" = "mips" ]; then
                 arch="mips"
                 android_prefix="mipsel"
-                android_toolchain="mipsel-linux-android-4.8"
+                android_toolchain="mipsel-linux-android-clang3.5"
             elif [ "$target" = "x86" ]; then
                 arch="x86"
                 android_prefix="i686"
-                android_toolchain="x86-4.8"
+                android_toolchain="x86-clang3.5"
             elif [ "$target" = "x86_64" ]; then
                 arch="x86_64"
                 android_prefix="x86_64"
-                android_toolchain="x86_64-4.9"
+                android_toolchain="x86_64-clang3.5"
             fi
             # Note that `make-standalone-toolchain.sh` is written for
             # `bash` and must therefore be executed by `bash`.
@@ -871,7 +871,7 @@ EOF
             bash "$make_toolchain" --platform="android-$platform" --toolchain="$android_toolchain" --install-dir="$temp_dir" --arch="$arch" || exit 1
 
             path="$temp_dir/bin:$PATH"
-            cc="$(cd "$temp_dir/bin" && echo $android_prefix-linux-*-gcc)" || exit 1
+            cc="$(cd "$temp_dir/bin" && echo $android_prefix-linux-*-clang)" || exit 1
             cflags_arch=""
             if [ "$target" = "arm" ]; then
                 word_list_append "cflags_arch" "-mthumb" || exit 1
@@ -890,7 +890,7 @@ EOF
                     export RELEASE=unknown
                     export SYSTEM=android
                     export ARCH=arm
-                    export HOSTCC=gcc
+                    export HOSTCC=clang
                     export PATH="$path"
                     export CC="$cc"
                     ./config no-idea no-camellia no-seed no-bf no-cast no-des \
@@ -907,7 +907,7 @@ EOF
             fi
 
             # Build realm
-            PATH="$path" CC="$cc" $MAKE -C "src/realm" CC_IS="gcc" BASE_DENOM="$denom" CFLAGS_ARCH="$cflags_arch" "librealm-$denom.a" "librealm-$denom-dbg.a" || exit 1
+            PATH="$path" CC="$cc" $MAKE -C "src/realm" CC_IS="clang" BASE_DENOM="$denom" CFLAGS_ARCH="$cflags_arch" "librealm-$denom.a" "librealm-$denom-dbg.a" || exit 1
 
             if [ "$enable_encryption" = "yes" ]; then
                 # Merge OpenSSL and Realm into one static library
