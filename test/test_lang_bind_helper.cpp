@@ -10911,7 +10911,6 @@ ONLY(LangBindHelper_LinkViewClear)
         TableRef owner = group_w.get_table("owner");
         TableRef dog   = group_w.get_table("dog");
 
-
         for(size_t i = 0; i < number_of_owners; ++i) {
             owner->add_empty_row();
             owner->set_int(0, i, i);
@@ -10923,6 +10922,9 @@ ONLY(LangBindHelper_LinkViewClear)
             }
         }
         LangBindHelper::commit_and_continue_as_read(sg_w);
+
+        CHECK_EQUAL(number_of_owners, owner->size());
+        CHECK_EQUAL(number_of_owners * number_of_dogs, dog->size());
     }
 
     // query and delete
