@@ -10880,67 +10880,88 @@ ONLY(LangBindHelper_LinkViewClear)
 {
     SHARED_GROUP_TEST_PATH(path);
 
-    const size_t number_of_owners = 6000;
-    const size_t number_of_dogs   = 48;
+    const size_t number_of_history = 6000;
+    const size_t number_of_line    = 48;
 
     std::unique_ptr<ClientHistory> hist_w(make_client_history(path, crypt_key()));
     SharedGroup sg_w(*hist_w, SharedGroup::durability_Full, crypt_key());
     Group& group_w = const_cast<Group&>(sg_w.begin_read());
 
     // set up tables:
-    // owner : ["id" (int), "dogs" (list(dog))]
-    // dog   : ["id" (int)]
+    // history : ["id" (int), "parent" (int), "lines" (list(line))]
+    // line    : ["id" (int), "parent" (int)]
     {
         LangBindHelper::promote_to_write(sg_w, *hist_w);
-        TableRef owner = group_w.add_table("owner");
-        TableRef dog = group_w.add_table("dog");
+        TableRef history = group_w.add_table("history");
+        TableRef line = group_w.add_table("line");
 
-        owner->add_column(type_Int, "id");
-        owner->add_column_link(type_LinkList, "dogs", *dog);
+        history->add_column(type_Int, "id");
+        history->add_column(type_Int, "parent");
+        history->add_column_link(type_LinkList, "lines", *line);
+        history->add_search_index(1);
 
-        dog->add_column(type_Int, "id");
+        line->add_column(type_Int, "id");
+        line->add_column(type_Int, "parent");
+        line->add_search_index(1);
+
         LangBindHelper::commit_and_continue_as_read(sg_w);
     }
 
-    // add data
-    // owner: [(0, [0, ..., number_of_dogs-1]), (1, [number_of_dogs, ..., 2*number_of_dogs-1]), ...]
-    // dog  : [0, 1, ..., number_of_dogs-1, 0, 1, ...]
     {
         LangBindHelper::promote_to_write(sg_w, *hist_w);
 
-        TableRef owner = group_w.get_table("owner");
-        TableRef dog   = group_w.get_table("dog");
+        TableRef history = group_w.get_table("history");
+        TableRef line    = group_w.get_table("line");
 
-        for(size_t i = 0; i < number_of_owners; ++i) {
-            owner->add_empty_row();
-            owner->set_int(0, i, i);
-            LinkViewRef ll = owner->get_linklist(1, i);
-            for(size_t j = 0; j < number_of_dogs; ++j) {
-                size_t r = dog->add_empty_row();
-                dog->set_int(0, r, i);
-                ll->add(r);
+        history->add_empty_row();
+        history->set_int(0, 0, 1);
+        LinkViewRef ll = history->get_linklist(2, 0);
+        for(size_t j = 0; j < number_of_line; ++j) {
+            size_t r = line->add_empty_row();
+            line->set_int(0, r, j + 1);
+            ll->add(r);
+        }
+
+        for(size_t i = 1; i < number_of_history; ++i) {
+            size_t ri = history->add_empty_row();
+            history->set_int(0, ri, i + 1);
+            history->set_int(1, ri, 1);
+            for(size_t j = 1; j <= number_of_line; ++j) {
+                size_t rj = line->add_empty_row();
+                line->set_int(0, rj, rj + 1);
+                line->set_int(1, rj, j);
             }
         }
+
         LangBindHelper::commit_and_continue_as_read(sg_w);
 
-        CHECK_EQUAL(number_of_owners, owner->size());
-        CHECK_EQUAL(number_of_owners * number_of_dogs, dog->size());
+        CHECK_EQUAL(number_of_history, history->size());
+        CHECK_EQUAL(number_of_history * number_of_line, line->size());
     }
 
     // query and delete
     {
         LangBindHelper::promote_to_write(sg_w, *hist_w);
 
-        TableRef owner = group_w.get_table("owner");
-        TableRef dog   = group_w.get_table("dog");
+        TableRef history = group_w.get_table("history");
+        TableRef line    = group_w.get_table("line");
 
-        LinkViewRef ll = owner->get_linklist(1, 0);
-        for(size_t i = 0; i < ll->size(); ++i) {
-            TableView tv = (dog->column<Int>(0) == int64_t(i)).find_all();
+        for(size_t i = 1; i <= number_of_line; ++i) {
+            TableView tv = (line->column<Int>(1) == int64_t(i)).find_all();
             tv.clear();
         }
         LangBindHelper::commit_and_continue_as_read(sg_w);
     }
+
+    {
+        TableRef history = group_w.get_table("history");
+        TableRef line    = group_w.get_table("line");
+
+        CHECK_EQUAL(number_of_history, history->size());
+        CHECK_EQUAL(number_of_line, line->size());
+    }
+
+
 }
 
 #endif
