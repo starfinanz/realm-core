@@ -9080,11 +9080,11 @@ TEST(LangBindHelper_SubqueryHandoverDependentViews)
     std::unique_ptr<ClientHistory> hist(make_client_history(path, crypt_key()));
     SharedGroup sg(*hist, SharedGroup::durability_Full, crypt_key());
     sg.begin_read();
-    
+
     std::unique_ptr<ClientHistory> hist_w(make_client_history(path, crypt_key()));
     SharedGroup sg_w(*hist_w, SharedGroup::durability_Full, crypt_key());
     Group& group_w = const_cast<Group&>(sg_w.begin_read());
-    
+
     SharedGroup::VersionID vid;
     {
         // Untyped interface
@@ -9113,10 +9113,10 @@ TEST(LangBindHelper_SubqueryHandoverDependentViews)
         {
             LangBindHelper::advance_read(sg, *hist, vid);
             sg_w.close();
-            
+
             std::unique_ptr<Query> q(sg.import_from_handover(move(handoverQuery)));
             realm::TableView tv = q->equal(1, true).find_all();
-            
+
             CHECK(tv.is_in_sync());
             CHECK(tv.is_attached());
             CHECK_EQUAL(26, tv.size());//BOOM! fail with 50
@@ -10874,6 +10874,71 @@ TEST(LangBindHelper_HandoverFuzzyTest)
     end_signal = true;
     for (int i = 0; i != threads; ++i)
         slaves[i].join();
+}
+
+ONLY(LangBindHelper_LinkViewClear)
+{
+    SHARED_GROUP_TEST_PATH(path);
+
+    const size_t number_of_owners = 6000;
+    const size_t number_of_dogs   = 48;
+
+    std::unique_ptr<ClientHistory> hist_w(make_client_history(path, crypt_key()));
+    SharedGroup sg_w(*hist_w, SharedGroup::durability_Full, crypt_key());
+    Group& group_w = const_cast<Group&>(sg_w.begin_read());
+
+    // set up tables:
+    // owner : ["id" (int), "dogs" (list(dog))]
+    // dog   : ["id" (int)]
+    {
+        LangBindHelper::promote_to_write(sg_w, *hist_w);
+        TableRef owner = group_w.add_table("owner");
+        TableRef dog = group_w.add_table("dog");
+
+        owner->add_column(type_Int, "id");
+        owner->add_column_link(type_LinkList, "dogs", *dog);
+
+        dog->add_column(type_Int, "id");
+        LangBindHelper::commit_and_continue_as_read(sg_w);
+    }
+
+    // add data
+    // owner: [(0, [0, ..., number_of_dogs-1]), (1, [number_of_dogs, ..., 2*number_of_dogs-1]), ...]
+    // dog  : [0, 1, ..., number_of_dogs-1, 0, 1, ...]
+    {
+        LangBindHelper::promote_to_write(sg_w, *hist_w);
+
+        TableRef owner = group_w.get_table("owner");
+        TableRef dog   = group_w.get_table("dog");
+
+
+        for(size_t i = 0; i < number_of_owners; ++i) {
+            owner->add_empty_row();
+            owner->set_int(0, i, i);
+            LinkViewRef ll = owner->get_linklist(1, i);
+            for(size_t j = 0; j < number_of_dogs; ++j) {
+                size_t r = dog->add_empty_row();
+                dog->set_int(0, r, i);
+                ll->add(r);
+            }
+        }
+        LangBindHelper::commit_and_continue_as_read(sg_w);
+    }
+
+    // query and delete
+    {
+        LangBindHelper::promote_to_write(sg_w, *hist_w);
+
+        TableRef owner = group_w.get_table("owner");
+        TableRef dog   = group_w.get_table("dog");
+
+        LinkViewRef ll = owner->get_linklist(1, 0);
+        for(size_t i = 0; i < ll->size(); ++i) {
+            TableView tv = (dog->column<Int>(0) == int64_t(i)).find_all();
+            tv.clear();
+        }
+        LangBindHelper::commit_and_continue_as_read(sg_w);
+    }
 }
 
 #endif
