@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.5.1)
 
+project(benchmark-datetime CXX)
+
 set(TAG v0.97.3)
 set(FULLTAG "tags/${TAG}")
-
-project(benchmark-datetime)
 
 add_definitions(-Werror -Wextra -Wall -pedantic -std=c++11)
 add_executable(bench.bin main.cpp)
