@@ -17,3 +17,21 @@ add_custom_target(
   cd ../.. && ./util/build-core.sh "${FULLTAG}"
 )
 add_dependencies(bench.bin core-build)
+
+include(ExternalProject)
+find_package(Git REQUIRED)
+
+ExternalProject_Add(
+  celero
+  GIT_REPOSITORY https://github.com/oleks/Celero.git
+  TIMEOUT 10
+  UPDATE_COMMAND ${GIT_EXECUTABLE} pull
+  INSTALL_COMMAND ""
+  LOG_DOWNLOAD ON
+)
+ExternalProject_Get_Property(celero source_dir)
+set(celero_include_dir "${source_dir}/include")
+set(celero_src_dir "${source_dir}/src")
+
+include_directories(${celero_include_dir})
+link_directories(${celero_src_dir})
