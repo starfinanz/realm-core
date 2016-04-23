@@ -248,7 +248,7 @@ if [ "$OS" = "Darwin" ]; then
 fi
 if ! printf "%s\n" "$MODE" | grep -q '^\(src-\|bin-\)\?dist'; then
     NUM_PROCESSORS=""
-    if [ "$OS" = "Darwin" ]; then
+    if [ "$OS" = "Darwin" ] || [ "$OS" = "FreeBSD" ]; then
         NUM_PROCESSORS="$(sysctl -n hw.ncpu)" || exit 1
     else
         if [ -r "/proc/cpuinfo" ]; then
