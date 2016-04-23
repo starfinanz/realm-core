@@ -231,7 +231,17 @@ download_openssl()
 # Setup OS specific stuff
 OS="$(uname)" || exit 1
 ARCH="$(uname -m)" || exit 1
-MAKE="make"
+
+# If the `MAKE` environment variable is set, use that. Otherwise, check whether
+# `gmake` is available. By default, use `make`.
+if [ -z "${MAKE}" ]; then
+  if which gmake >/dev/null; then
+    MAKE="gmake"
+  else
+    MAKE="make"
+  fi
+fi
+
 LD_LIBRARY_PATH_NAME="LD_LIBRARY_PATH"
 if [ "$OS" = "Darwin" ]; then
     LD_LIBRARY_PATH_NAME="DYLD_LIBRARY_PATH"
