@@ -12124,5 +12124,32 @@ TEST_TYPES(LangBindHelper_EmptyWrites, std::true_type, std::false_type)
     t->insert_empty_row(0, 1);
 }
 
+TEST_TYPES(LangBindHelper_TableView_Remove_Clear, std::true_type, std::false_type)
+{
+    constexpr bool nullable_toggle = TEST_TYPE::value;
+    SHARED_GROUP_TEST_PATH(path);
+    std::unique_ptr<Replication> hist_w(make_client_history(path, nullptr));
+    SharedGroup sg_w(*hist_w, SharedGroup::durability_Full, nullptr);
+    Group& g = const_cast<Group&>(sg_w.begin_read());
+
+    LangBindHelper::promote_to_write(sg_w);
+    TableRef t = g.add_table("");
+    t->add_column(type_Int, "", nullable_toggle);
+
+    for (int i = 0; i < 10; ++i) {
+        t->add_empty_row();
+        t->set_int(0, i, i);
+    }
+    LangBindHelper::commit_and_continue_as_read(sg_w);
+
+    TableView view = t->where().find_all();
+
+    LangBindHelper::promote_to_write(sg_w);
+    t->move_last_over(view.get_source_ndx(0));
+    view.clear(RemoveMode::unordered);
+    LangBindHelper::commit_and_continue_as_read(sg_w);
+
+    CHECK_EQUAL(0, t->size());
+}
 
 #endif
