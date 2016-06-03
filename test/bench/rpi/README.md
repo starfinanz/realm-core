@@ -3,6 +3,10 @@
 _Hypothesis:_ Benchmarking on an array of Raspberry Pi's is "close enough" to
 benchmarking on an array of real devices.
 
+## Todo
+
+- [ ] Replace glibc with Bionic.
+
 ## Our Pi's
 
 We have a number Raspberry Pi 3 Model B lying around.
