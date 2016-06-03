@@ -1,8 +1,9 @@
 # Benchmarking on Raspberry Pi
 
-We have a number Raspberry Pi 3 Model B lying around. The hypothesis is that
-benchmarking on a Raspberry Pi is "close enough" to benchmarking on a real
-device. This hypothesis remains to be confirmed.
+We have a number Raspberry Pi 3 Model B lying around.
+
+_Hypothesis:_ Benchmarking on an array of Raspberry Pi's is "close enough" to
+benchmarking on an array of real devices.
 
 Here is some information about their CPUs:
 
