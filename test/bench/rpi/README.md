@@ -5,7 +5,7 @@ benchmarking on an array of real devices.
 
 ## Todo
 
-- [ ] Replace glibc with Bionic.
+- [ ] Replace glibc with Bionic on the rpi.
 
 ## Our Pi's
 
