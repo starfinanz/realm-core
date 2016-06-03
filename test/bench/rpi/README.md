@@ -3,6 +3,8 @@
 _Hypothesis:_ Benchmarking on an array of Raspberry Pi's is "close enough" to
 benchmarking on an array of real devices.
 
+## Our Pi's
+
 We have a number Raspberry Pi 3 Model B lying around.
 
 Here is some information about their CPUs:
