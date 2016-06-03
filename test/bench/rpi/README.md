@@ -10,6 +10,7 @@ benchmarking on an array of real devices.
 [raspberrypi/tools](https://github.com/raspberrypi/tools) cross-compiler is
 from 2014, and doesn't support C++14.)
 - [ ] Create a Docker image for cross-compiling core.
+- [ ] Figure out a repository for cross-compiled versions of core. There's no reason to cross-compile a given version more than once for a given platform.
 - [ ] Replace glibc with Bionic on the rpi.
 
 ## Our Pi's
