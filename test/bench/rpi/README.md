@@ -5,6 +5,11 @@ benchmarking on an array of real devices.
 
 ## Todo
 
+- [-] Cross-compile core using [Linaro
+  binaries](http://releases.linaro.org/components/toolchain/binaries/). (The
+[raspberrypi/tools](https://github.com/raspberrypi/tools) cross-compiler is
+from 2014, and doesn't support C++14.)
+- [ ] Create a Docker image for cross-compiling core.
 - [ ] Replace glibc with Bionic on the rpi.
 
 ## Our Pi's
