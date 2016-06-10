@@ -94,7 +94,7 @@ int Group::get_target_file_format_version_for_session(int current_file_format_ve
 
     static_cast<void>(current_file_format_version);
     static_cast<void>(requested_history_type_2);
-    return 5;
+    return 6;
 }
 
 
@@ -139,6 +139,8 @@ void Group::upgrade_file_format(int target_file_format_version)
     }
 
     // NOTE: Additional future upgrade steps go here.
+
+    std::cerr << "upgrade file format" << std::endl;
 
     set_file_format_version(target_file_format_version);
 }

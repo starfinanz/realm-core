@@ -720,7 +720,7 @@ void spawn_daemon(const std::string& file)
 
 void SharedGroup::do_open(const std::string& path, bool no_create_file, DurabilityLevel durability,
                           bool is_backend, const char* encryption_key,
-                          bool allow_upgrafe_file_format)
+                          bool allow_upgrade_file_format)
 {
     // Exception safety: Since do_open() is called from constructors, if it
     // throws, it must leave the file closed.
@@ -1126,7 +1126,7 @@ void SharedGroup::do_open(const std::string& path, bool no_create_file, Durabili
             gf::set_file_format_version(m_group, target_file_format_version);
         }
         else {
-            upgrade_file_format(allow_upgrafe_file_format, target_file_format_version); // Throws
+            upgrade_file_format(allow_upgrade_file_format, target_file_format_version); // Throws
         }
     }
     catch (...) {

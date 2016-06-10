@@ -1010,26 +1010,42 @@ TEST(Upgrade_Database_4_5_DateTime1)
 
 TEST(Upgrade_Database_5_6_HistoryFileFormatVersion)
 {
-    std::string path = test_util::get_test_resource_path() + "test_upgrade_database_5_to_6_history_file_format_version.realm";
+    std::string path_no_history = test_util::get_test_resource_path() + "test_upgrade_database_5_to_6_no_history.realm";
+    {
+        CHECK_OR_RETURN(File::exists(path_no_history));
+        SHARED_GROUP_TEST_PATH(temp_copy);
 
-    CHECK_OR_RETURN(File::exists(path));
-    SHARED_GROUP_TEST_PATH(temp_copy);
+        // Make a copy of the version 5 database so that we keep the original file intact and unmodified
+        CHECK_OR_RETURN(File::copy(path_no_history, temp_copy));
 
-    // Make a copy of the version 5 database so that we keep the original file intact and unmodified
-    CHECK_OR_RETURN(File::copy(path, temp_copy));
+        // CHANGE THIS COMMENT
+        // Constructing this SharedGroup will trigger Table::upgrade_olddatetime() for all tables because the file is
+        // in version 4
+        SharedGroup sg(temp_copy);
+        ReadTransaction rt {sg};
+        ConstTableRef tr = rt.get_table("table name");
+        CHECK_EQUAL(tr->get_int(0, 0), 123);
+        CHECK_EQUAL(_impl::SharedGroupFriend::get_file_format_version(sg), 6);
+    }
 
-    // CHANGE THIS COMMENT
-    // Constructing this SharedGroup will trigger Table::upgrade_olddatetime() for all tables because the file is
-    // in version 4
-    SharedGroup sg(temp_copy);
+    std::string path_in_realm_history = test_util::get_test_resource_path() + "test_upgrade_database_5_to_6_in_realm_history.realm";
+    {
+        CHECK_OR_RETURN(File::exists(path_in_realm_history));
+        SHARED_GROUP_TEST_PATH(temp_copy);
 
-    
+        // Make a copy of the version 5 database so that we keep the original file intact and unmodified
+        CHECK_OR_RETURN(File::copy(path_in_realm_history, temp_copy));
 
-
-
-
-
-
+        // CHANGE THIS COMMENT
+        // Constructing this SharedGroup will trigger Table::upgrade_olddatetime() for all tables because the file is
+        // in version 4
+        std::unique_ptr<Replication> repl = make_in_realm_history(temp_copy);
+        SharedGroup sg(*repl);
+        ReadTransaction rt {sg};
+        ConstTableRef tr = rt.get_table("table name");
+        CHECK_EQUAL(tr->get_int(0, 0), 123);
+        CHECK_EQUAL(_impl::SharedGroupFriend::get_file_format_version(sg), 6);
+    }
 }
 
 #endif // TEST_GROUP
