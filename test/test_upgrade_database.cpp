@@ -1008,4 +1008,28 @@ TEST(Upgrade_Database_4_5_DateTime1)
 
 }
 
+TEST(Upgrade_Database_5_6_HistoryFileFormatVersion)
+{
+    std::string path = test_util::get_test_resource_path() + "test_upgrade_database_5_to_6_history_file_format_version.realm";
+
+    CHECK_OR_RETURN(File::exists(path));
+    SHARED_GROUP_TEST_PATH(temp_copy);
+
+    // Make a copy of the version 5 database so that we keep the original file intact and unmodified
+    CHECK_OR_RETURN(File::copy(path, temp_copy));
+
+    // CHANGE THIS COMMENT
+    // Constructing this SharedGroup will trigger Table::upgrade_olddatetime() for all tables because the file is
+    // in version 4
+    SharedGroup sg(temp_copy);
+
+    
+
+
+
+
+
+
+}
+
 #endif // TEST_GROUP

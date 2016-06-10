@@ -743,9 +743,11 @@ void SharedGroup::do_open(const std::string& path, bool no_create_file, Durabili
     SlabAlloc& alloc = m_group.m_alloc;
 
     Replication::HistoryType history_type = Replication::hist_None;
+    int history_file_format_version = 0;
     if (Replication* repl = m_group.get_replication()) {
         repl->commit_log_close();
         history_type = repl->get_history_type();
+        history_file_format_version = repl->get_history_file_format_version();
     }
 
     int target_file_format_version;

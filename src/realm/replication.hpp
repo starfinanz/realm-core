@@ -354,6 +354,15 @@ public:
     /// get_history() returns null.
     virtual HistoryType get_history_type() const noexcept = 0;
 
+    /// get_history_file_format_version returns the version number of
+    /// the history file format for the given history type.
+    /// A history type must bump the version number on file format changes.
+    /// Histories must override this function if needed.
+    virtual int get_history_file_format_version() const noexcept
+    {
+        return 1;
+    }
+
     /// Returns an object that gives access to the history of changesets in a
     /// way that allows for continuous transactions to work
     /// (Group::advance_transact() in particular).
