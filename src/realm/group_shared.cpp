@@ -72,7 +72,7 @@ const uint16_t relaxed_sync_threshold = 50;
 // 7       Introducing `commit_in_critical_phase` and `sync_client_present`, and
 //         changing `daemon_started` and `daemon_ready` from 1-bit to 8-bit
 //         fields.
-const uint_fast16_t g_shared_info_version = 7;
+const uint_fast16_t g_shared_info_version = 8;
 
 // The following functions are carefully designed for minimal overhead
 // in case of contention among read transactions. In case of contention,
@@ -454,8 +454,11 @@ struct alignas(8) SharedGroup::SharedInfo {
     /// SharedInfoUnchangingLayout can have its layout changed.
     uint16_t shared_info_version = g_shared_info_version; // Offset 6
 
-    uint16_t durability; // Offset 8
-    uint16_t free_write_slots = 0; // Offset 10
+    /// The target version for the history. Each history type has its own
+    /// version number. This number must match across all session participants.
+    uint16_t history_file_format_version; // Offset 8
+
+    uint16_t durability; // Offset 10
 
     /// Number of participating shared groups
     uint32_t num_participants = 0; // Offset 12
@@ -472,24 +475,26 @@ struct alignas(8) SharedGroup::SharedInfo {
 
     uint64_t number_of_versions; // Offset 32
 
+    uint16_t free_write_slots = 0; // Offset 40
+
     /// True (1) if there is a sync client present. It is an error to start a
     /// sync client if another one is present. If the sync client crashes and
     /// leaves the flag set, the session will need to be restarted (lock file
     /// reinitialized) before a new sync client can be started.
-    uint8_t sync_client_present = 0; // Offset 40
+    uint8_t sync_client_present = 0; // Offset 42
 
     /// Set when a participant decides to start the daemon, cleared by the
     /// daemon when it decides to exit. Participants check during open() and
     /// start the daemon if running in async mode.
-    uint8_t daemon_started = 0; // Offset 41
+    uint8_t daemon_started = 0; // Offset 43
 
     /// Set by the daemon when it is ready to handle commits. Participants must
     /// wait during open() on 'daemon_becomes_ready' for this to become true.
     /// Cleared by the daemon when it decides to exit.
-    uint8_t daemon_ready = 0; // Offset 42
+    uint8_t daemon_ready = 0; // Offset 44
 
-    uint8_t filler_1; // Offset 43
-    uint32_t filler_2; // Offset 44
+    uint8_t filler_1; // Offset 45
+    uint16_t filler_2; // Offset 46
 
     InterprocessMutex::SharedPart shared_writemutex; // Offset 48
 #ifdef REALM_ASYNC_DAEMON
@@ -573,10 +578,10 @@ SharedGroup::SharedInfo::SharedInfo(DurabilityLevel dura, Replication::HistoryTy
                   std::is_same<decltype(file_format_version), uint8_t>::value &&
                   offsetof(SharedInfo, history_type) == 5 &&
                   std::is_same<decltype(history_type), int8_t>::value &&
-                  offsetof(SharedInfo, durability) == 8 &&
+                  offsetof(SharedInfo, history_file_format_version) == 8 &&
+                  std::is_same<decltype(history_file_format_version), uint16_t>::value &&
+                  offsetof(SharedInfo, durability) == 10 &&
                   std::is_same<decltype(durability), uint16_t>::value &&
-                  offsetof(SharedInfo, free_write_slots) == 10 &&
-                  std::is_same<decltype(free_write_slots), uint16_t>::value &&
                   offsetof(SharedInfo, num_participants) == 12 &&
                   std::is_same<decltype(num_participants), uint32_t>::value &&
                   offsetof(SharedInfo, latest_version_number) == 16 &&
@@ -585,16 +590,18 @@ SharedGroup::SharedInfo::SharedInfo(DurabilityLevel dura, Replication::HistoryTy
                   std::is_same<decltype(session_initiator_pid), uint64_t>::value &&
                   offsetof(SharedInfo, number_of_versions) == 32 &&
                   std::is_same<decltype(number_of_versions), uint64_t>::value &&
-                  offsetof(SharedInfo, sync_client_present) == 40 &&
+                  offsetof(SharedInfo, free_write_slots) == 40 &&
+                  std::is_same<decltype(free_write_slots), uint16_t>::value &&
+                  offsetof(SharedInfo, sync_client_present) == 42 &&
                   std::is_same<decltype(sync_client_present), uint8_t>::value &&
-                  offsetof(SharedInfo, daemon_started) == 41 &&
+                  offsetof(SharedInfo, daemon_started) == 43 &&
                   std::is_same<decltype(daemon_started), uint8_t>::value &&
-                  offsetof(SharedInfo, daemon_ready) == 42 &&
+                  offsetof(SharedInfo, daemon_ready) == 44 &&
                   std::is_same<decltype(daemon_ready), uint8_t>::value &&
-                  offsetof(SharedInfo, filler_1) == 43 &&
+                  offsetof(SharedInfo, filler_1) == 45 &&
                   std::is_same<decltype(filler_1), uint8_t>::value &&
-                  offsetof(SharedInfo, filler_2) == 44 &&
-                  std::is_same<decltype(filler_2), uint32_t>::value &&
+                  offsetof(SharedInfo, filler_2) == 46 &&
+                  std::is_same<decltype(filler_2), uint16_t>::value &&
                   offsetof(SharedInfo, shared_writemutex) == 48 &&
                   std::is_same<decltype(shared_writemutex), InterprocessMutex::SharedPart>::value,
                   "Caught layout change requiring SharedInfo file format bumping");
