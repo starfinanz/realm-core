@@ -1985,7 +1985,8 @@ void Group::verify() const
         if (_impl::History* hist = repl->get_history()) {
             _impl::History::version_type version = 0;
             int history_type = 0;
-            get_version_and_history_type(m_top, version, history_type);
+            int history_file_format_version = 0;
+            get_version_and_history_type(m_top, version, history_type, history_file_format_version);
             hist->update_from_parent(version);
             hist->verify();
         }

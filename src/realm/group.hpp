@@ -711,7 +711,8 @@ private:
 
     static void get_version_and_history_type(const Array& top,
                                              _impl::History::version_type& version,
-                                             int& history_type) noexcept;
+                                             int& history_type,
+                                             int& history_file_format_version) noexcept;
     static ref_type get_history_ref(const Array& top) noexcept;
     void set_history_parent(Array& history_root) noexcept;
     void prepare_history_parent(Array& history_root, int history_type);
@@ -1073,10 +1074,12 @@ inline void Group::send_schema_change_notification() const
 
 inline void Group::get_version_and_history_type(const Array& top,
                                                 _impl::History::version_type& version,
-                                                int& history_type) noexcept
+                                                int& history_type,
+                                                int& history_file_format_version) noexcept
 {
     _impl::History::version_type version_2 = 0;
     int history_type_2 = 0;
+    int history_file_format_version_2 = 0;
     if (top.is_attached()) {
         if (top.size() >= 6) {
             REALM_ASSERT(top.size() >= 7);
@@ -1091,8 +1094,11 @@ inline void Group::get_version_and_history_type(const Array& top,
     // instead.
     if (version_2 == 0)
         version_2 = 1;
-    version      = version_2;
-    history_type = history_type_2;
+    version                     = version_2;
+    history_type                = history_type_2;
+
+    // FIXME: Change this function.
+    history_file_format_version = history_file_format_version_2;
 }
 
 inline ref_type Group::get_history_ref(const Array& top) noexcept
@@ -1273,12 +1279,13 @@ public:
 
     static void get_version_and_history_type(Allocator& alloc, ref_type top_ref,
                                              _impl::History::version_type& version,
-                                             int& history_type) noexcept
+                                             int& history_type,
+                                             int& history_file_format_version) noexcept
     {
         Array top(alloc);
         if (top_ref != 0)
             top.init_from_ref(top_ref);
-        Group::get_version_and_history_type(top, version, history_type);
+        Group::get_version_and_history_type(top, version, history_type, history_file_format_version);
     }
 
     static ref_type get_history_ref(const Group& group) noexcept

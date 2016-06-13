@@ -978,7 +978,8 @@ void SharedGroup::do_open(const std::string& path, bool no_create_file, Durabili
                 // compatibility
                 version_type version = 0;
                 int stored_history_type = 0;
-                gf::get_version_and_history_type(alloc, top_ref, version, stored_history_type);
+                int stored_history_file_format_version = 0;
+                gf::get_version_and_history_type(alloc, top_ref, version, stored_history_type, stored_history_file_format_version);
                 bool good_history_type = false;
                 switch (history_type) {
                     case Replication::hist_None:
