@@ -56,6 +56,7 @@ TVOS_DIR="tvos-lib"
 
 ANDROID_DIR="android-lib"
 ANDROID_PLATFORMS="arm arm-v7a arm64 mips x86 x86_64"
+ANDROID_PLATFORMS="arm-v7a"
 
 CONFIG_VERSION=1
 

@@ -32,6 +32,8 @@
 #include <realm/utilities.hpp>
 #include <mutex>
 
+void android_log(const char* message) noexcept;
+
 namespace realm {
 namespace util {
 
@@ -103,9 +105,11 @@ inline InterprocessMutex::InterprocessMutex()
 inline InterprocessMutex::~InterprocessMutex() noexcept
 {
 #ifdef REALM_ROBUST_MUTEX_EMULATION
+    android_log("~InterprocessMutex in");
     m_local_mutex.lock();
     m_file.close();
     m_local_mutex.unlock();
+    android_log("~InterprocessMutex out");
 #endif
 }
 
@@ -114,6 +118,7 @@ inline void InterprocessMutex::set_shared_part(SharedPart& shared_part,
                                                const std::string& mutex_name)
 {
 #ifdef REALM_ROBUST_MUTEX_EMULATION
+    android_log("set_shared_part1 in");
     static_cast<void>(shared_part);
     if (m_file.is_attached()) {
         m_file.close();
@@ -121,6 +126,7 @@ inline void InterprocessMutex::set_shared_part(SharedPart& shared_part,
     m_filename = path + "." + mutex_name + ".mx";
     std::lock_guard<Mutex> guard(m_local_mutex);
     m_file.open(m_filename, File::mode_Write);
+    android_log("set_shared_part1 out");
 #else
     m_shared_part = &shared_part;
     static_cast<void>(path);
@@ -132,6 +138,7 @@ inline void InterprocessMutex::set_shared_part(SharedPart& shared_part,
                                                File&& lock_file)
 {
 #ifdef REALM_ROBUST_MUTEX_EMULATION
+    android_log("3 in");
     static_cast<void>(shared_part);
     if (m_file.is_attached()) {
         m_file.close();
@@ -139,6 +146,7 @@ inline void InterprocessMutex::set_shared_part(SharedPart& shared_part,
     m_filename.clear();
     std::lock_guard<Mutex> guard(m_local_mutex);
     m_file = std::move(lock_file);
+    android_log("3 out");
 #else
     m_shared_part = &shared_part;
     static_cast<void>(lock_file);
@@ -148,8 +156,10 @@ inline void InterprocessMutex::set_shared_part(SharedPart& shared_part,
 inline void InterprocessMutex::release_shared_part()
 {
 #ifdef REALM_ROBUST_MUTEX_EMULATION
+    android_log("4 in");
     if (!m_filename.empty())
         File::try_remove(m_filename);
+    android_log("4 out");
 #else
     m_shared_part = nullptr;
 #endif
@@ -158,9 +168,11 @@ inline void InterprocessMutex::release_shared_part()
 inline void InterprocessMutex::lock()
 {
 #ifdef REALM_ROBUST_MUTEX_EMULATION
+    android_log("5 in");
     std::unique_lock<Mutex> lock(m_local_mutex);
     m_file.lock_exclusive();
     lock.release();
+    android_log("5 out");
 #else
     REALM_ASSERT(m_shared_part);
     m_shared_part->lock([](){});
@@ -171,8 +183,10 @@ inline void InterprocessMutex::lock()
 inline void InterprocessMutex::unlock()
 {
 #ifdef REALM_ROBUST_MUTEX_EMULATION
+    android_log("6 in");
     m_file.unlock();
     m_local_mutex.unlock();
+    android_log("6 out");
 #else
     REALM_ASSERT(m_shared_part);
     m_shared_part->unlock();
