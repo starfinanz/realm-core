@@ -53,7 +53,28 @@ struct IncompatibleLockFile: std::runtime_error {
     }
 };
 
-/// A SharedGroup facilitates transactions.
+
+// C2 Experimental interface
+using ColKey = uint64_t;
+using RowKey = uint64_t;
+using TblKey = uint64_t;
+
+struct C2_Transaction {
+    int64_t get_int(TblKey, ColKey, RowKey);
+    void set_int(TblKey, ColKey, RowKey, int64_t);
+    RowKey create_row(TblKey);
+    void create_row_at_key(TblKey, RowKey);
+    ColKey create_column(TblKey);
+    TblKey create_table();
+    void remove_row(TblKey, RowKey);
+
+    // after commit, the transaction becomes a read-transaction
+    void commit();
+
+    // destruction without commit will loose any changes
+};
+
+// A SharedGroup facilitates transactions.
 ///
 /// When multiple threads or processes need to access a database
 /// concurrently, they must do so using transactions. By design,
@@ -524,15 +545,18 @@ public:
     // Release pinned version (not thread safe)
     void unpin_version(VersionID version);
 
-private:
-    struct SharedInfo;
-    struct ReadCount;
+    // C2 Experimental interface:
+    std::shared_ptr<C2_Transaction> C2_begin_read();
+    std::shared_ptr<C2_Transaction> C2_begin_write();
+
     struct ReadLockInfo {
         uint_fast64_t   m_version    = std::numeric_limits<version_type>::max();
         uint_fast32_t   m_reader_idx = 0;
         ref_type        m_top_ref    = 0;
         size_t          m_file_size  = 0;
     };
+    struct SharedInfo;
+    struct ReadCount;
     class ReadLockUnlockGuard;
 
     // Member variables

@@ -1988,3 +1988,83 @@ TableRef SharedGroup::import_table_from_handover(std::unique_ptr<Handover<Table>
     return result;
 }
 
+// C2 experimental implementation (using derived class, but no virtual methods)
+// NOTE: This is for single-thread demonstration purposes, we'll be using SharedGroup 
+// and SlabAlloc in ways which are not thread-safe
+
+struct C2_Transaction_Impl : public C2_Transaction {
+    C2_Transaction_Impl(bool writable, SharedGroup& sg, SlabAlloc& alloc) 
+        : m_writable(writable), m_sg(sg), m_alloc(alloc)
+    {
+        if (writable) {
+            m_sg.do_begin_write();
+            m_alloc.reset_free_space_tracking();
+        }
+        SharedGroup::VersionID vid;
+        sg.grab_read_lock(m_read_lock, vid);
+        m_alloc.remap(m_read_lock.m_file_size);
+    }
+
+    ~C2_Transaction_Impl()
+    {
+        if (m_writable) {
+            m_sg.do_end_write();
+            m_writable = false;
+        }
+        m_sg.release_read_lock(m_read_lock);
+    }
+
+    bool m_writable;
+    SharedGroup& m_sg;
+    SharedGroup::ReadLockInfo m_read_lock;
+    SlabAlloc& m_alloc;
+};
+
+std::shared_ptr<C2_Transaction> SharedGroup::C2_begin_read()
+{
+    auto result = std::make_shared<C2_Transaction_Impl>(false, *this, m_group.m_alloc);
+    return result;
+}
+
+std::shared_ptr<C2_Transaction> SharedGroup::C2_begin_write()
+{
+    auto result = std::make_shared<C2_Transaction_Impl>(true, *this, m_group.m_alloc);
+    return result;
+}
+
+// Cluster and chunk format. Chunk is 8 byte aligned.
+// Each chunk has a max size of 4G bytes, size stored in first 4 bytes
+// Cluster layout
+// 4-5: - number of entries (0-64K)
+// 6:   - indexing type: 0=direct and unfiltered, 1=direct but filtered, 2=bsearch
+// 7:   - alignment spacing
+// 8:   - column[entries] of:
+//        - in-cluster offsets (4 bytes)
+//        - low 3 bytes of offset encode element size in bits: 0,1,2,4,8,16,32,64
+//          with element size 0 indicating it's a blob indexed from another column
+//        - offset = 0 indicating an empty column
+// - if filtered, column[0] is the filter
+// - if bsearch, column[0] is the key displacement (from key base)
+// Metadata for interpreting the columns is not available at cluster level
+//
+// Table layout
+// - indexing levels
+//   - 0: no indexing, leaf cluster follows directly after column definitions
+//   - N: N-1 layers of bptree clusters, top layer follows directly after column defs
+// - column definition (or spec) subcluster
+//   - this uses direct linear access to map a public column key to a column index
+//   - column[0]: column index (for use in cluster level access)
+//   - column[1]: column type (0 for unused column)
+//
+// BPtree interior node
+// - number of entries
+// - key base
+// - column[0]: key offsets for binary search
+// - column[1]: corresponding ref to next level
+//
+// Group layout / top cluster
+// - number of table keys
+// - column[0]: table ref for key, 0 if no table
+// !! consolidate all top data into a single cluster, including free lists !!
+//
+// what about layout in mem (not on disk) - need to manage capacity, etc
