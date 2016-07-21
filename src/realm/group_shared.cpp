@@ -2033,13 +2033,26 @@ std::shared_ptr<C2_Transaction> SharedGroup::C2_begin_write()
 }
 
 // Cluster and chunk format. Chunk is 8 byte aligned.
-// Each chunk has a max size of 4G bytes, size stored in first 4 bytes
+// Each chunk has a max size of 4G bytes.
+// Each chunk is preceeded by 8 bytes header
+// - size (4 bytes)
+// - checksum/reserved (4 bytes)
+struct C2_Header {
+    uint32_t size;
+    uint32_t reserved;
+};
+
+// generally, refs are positive values when pointing to something inside the file
+// and negative values, when pointing to transient data in writable memory
+using C2Ref = int64_t;
+
+
 // Cluster layout
 // 4-5: - number of entries (0-64K)
 // 6:   - indexing type: 0=direct and unfiltered, 1=direct but filtered, 2=bsearch
 // 7:   - alignment spacing
-// 8:   - column[entries] of:
-//        - in-cluster offsets (4 bytes)
+// 8:   - column[num_columns] of:
+//        - in-cluster offsets (4 bytes)(when in memory, instead refers to alloc number)
 //        - low 3 bytes of offset encode element size in bits: 0,1,2,4,8,16,32,64
 //          with element size 0 indicating it's a blob indexed from another column
 //        - offset = 0 indicating an empty column
@@ -2047,24 +2060,56 @@ std::shared_ptr<C2_Transaction> SharedGroup::C2_begin_write()
 // - if bsearch, column[0] is the key displacement (from key base)
 // Metadata for interpreting the columns is not available at cluster level
 //
+struct C2_Cluster {
+    uint16_t num_entries;
+    uint8_t indexing_type;
+    uint8_t spare;
+    uint32_t column_offsets[1]; // actually [num_columns] as defined in C2_Table.
+};
+
+
 // Table layout
 // - indexing levels
 //   - 0: no indexing, leaf cluster follows directly after column definitions
-//   - N: N-1 layers of bptree clusters, top layer follows directly after column defs
-// - column definition (or spec) subcluster
+//   - N: N-1 layers of bptree nodes, top node follows directly after column defs
+// - column defs
 //   - this uses direct linear access to map a public column key to a column index
-//   - column[0]: column index (for use in cluster level access)
-//   - column[1]: column type (0 for unused column)
+//   - num_column_defs
+//   - column_def[num_column_defs] of
+//     - internal key (column index)
+//     - column type
 //
+struct C2_Table {
+    uint8_t bptree_levels;
+    uint16_t num_column_defs;
+    uint16_t num_columns;
+    struct C2_ColumnDef {
+        uint16_t index;
+        uint8_t type;
+        uint8_t spare;
+    };
+    C2_ColumnDef column_defs[1]; // actually [num_column_defs]
+};
+
+
 // BPtree interior node
 // - number of entries
 // - key base
 // - column[0]: key offsets for binary search
 // - column[1]: corresponding ref to next level
 //
+struct C2_BPTree {
+    uint16_t num_entries;
+    uint64_t key_base;
+    C2_Ref key_offsets;
+    C2_Ref next_level;
+};
+
 // Group layout / top cluster
 // - number of table keys
 // - column[0]: table ref for key, 0 if no table
 // !! consolidate all top data into a single cluster, including free lists !!
 //
-// what about layout in mem (not on disk) - need to manage capacity, etc
+// While in writable memory (not on disk), the columns are indivially allocated
+// and hence also prefixed with a 4-byte capacity, and the size of the cluster
+// is just the cluster itself. When written to disk, the cluster and its arrays
