@@ -2042,31 +2042,137 @@ struct C2_Header {
     uint32_t reserved;
 };
 
+size_t C2_chunk_size(void* ptr)
+{
+    C2_Header* header = static_cast<C2_Header*>(ptr);
+    --header;
+    return header->size;
+}
+
 // generally, refs are positive values when pointing to something inside the file
-// and negative values, when pointing to transient data in writable memory
-using C2Ref = int64_t;
+// and negative values, when pointing to transient data in writable memory.
+
+struct C2_DynType {};
+
+template<typename T> struct C2_PackedArray {
+    C2_PackedArray(void*, int num_entries, int element_size);
+    int bsearch(T key);
+    T get(int index);
+    bool set(int index, T value); // false if value is too large to be represented
+};
+
+// fwd decl
+template<typename T> struct C2_Ref;
+
+// guaranteed to be representable in 32 bit, either
+// as a positive offset (Position Independent Pointer)
+// or as a negative in-writable-memory allocation id.
+template<typename T> struct C2_CondensedRef {
+
+    C2_CondensedRef(const C2_CondensedRef<C2_DynType>& cref) : m_ref(cref.m_ref) {};
+
+    template<typename HostType>
+    T* translate(SlabAlloc& alloc, C2_Ref<HostType> host_ref);
+
+    template<typename HostType>
+    void encode_in_host(HostType* base_addr, T* field_addr);
+
+    int get_encoded_element_size() { return m_ref & 0x7; }
+
+    template<typename HostType>
+    C2_PackedArray<T> as_packed_array(SlabAlloc& alloc, C2_Ref<HostType> host_ref, int num_entries)
+    {
+        return C2_PackedArray<T>(translate(alloc, host_ref), num_entries, get_encoded_element_size());
+    }
+    int32_t m_ref;
+};
 
 
-// Cluster layout
-// 4-5: - number of entries (0-64K)
-// 6:   - indexing type: 0=direct and unfiltered, 1=direct but filtered, 2=bsearch
-// 7:   - alignment spacing
-// 8:   - column[num_columns] of:
-//        - in-cluster offsets (4 bytes)(when in memory, instead refers to alloc number)
-//        - low 3 bytes of offset encode element size in bits: 0,1,2,4,8,16,32,64
-//          with element size 0 indicating it's a blob indexed from another column
-//        - offset = 0 indicating an empty column
-// - if filtered, column[0] is the filter
-// - if bsearch, column[0] is the key displacement (from key base)
+
+template<typename T> struct C2_Ref {
+    template<typename HostType>
+    C2_Ref(C2_Ref<HostType> host_ref, const C2_CondensedRef<T>& cref) 
+    {
+        if (cref.m_ref <= 0) 
+            m_ref = cref.m_ref;
+        else 
+            m_ref = host_ref.m_ref + cref.m_ref;
+    }
+    C2_Ref(const C2_Ref<C2_DynType>& cref) : m_ref(cref.m_ref) {};
+    T* translate(SlabAlloc& alloc);
+    bool is_read_only() { return m_ref >= 8; }
+    bool is_writable() { return m_ref < 0; }
+    bool is_null() { return m_ref == 0; }
+    int get_encoded_element_size() { return m_ref & 0x7; }
+    size_t element_size_in_bits()
+    {
+        int low_bits = get_encoded_element_size();
+        size_t bits_per_elem = 1<<low_bits;
+        return bits_per_elem;
+    }
+    size_t array_size(int num_entries)
+    {
+        size_t bits_per_elem = element_size_in_bits();
+        size_t bytes = ((bits_per_elem * num_entries)+7)/8;
+        return bytes;
+    };
+    int64_t m_ref;
+};
+
+// - column[num_columns+2] of:
+//       - in-cluster offsets (4 bytes)(when in memory, instead refers to alloc number)
+//       - low 3 bytes of offset encode element size in bits: 1,2,4,8,16,32,64,128
+//          with element size 128 sometimes indicating it's a blob (no element size)
+//       - offset = 0 indicating an empty column
+// - column[0] is the filter, a bit vector marking *invalid* entries.
+// - column[1] is the key displacement (from key base) used for searching
 // Metadata for interpreting the columns is not available at cluster level
 //
 struct C2_Cluster {
+    uint64_t key_base; // This can be optimized away
     uint16_t num_entries;
-    uint8_t indexing_type;
-    uint8_t spare;
-    uint32_t column_offsets[1]; // actually [num_columns] as defined in C2_Table.
+    uint16_t num_used_entries;
+    C2_CondensedRef<C2_DynType> columns[1]; // actually [num_columns+2] as defined in C2_Table.
 };
 
+size_t C2_storage_size(int num_columns)
+{
+    size_t res = sizeof(C2_Cluster) + (1+num_columns) * sizeof(C2_CondensedRef<C2_DynType>);
+    return res;
+}
+
+size_t align(size_t val, size_t alignment)
+{
+    return (val+alignment-1) & ~(alignment-1);
+}
+
+int find_index(SlabAlloc& alloc, C2_Ref<C2_Cluster>& cl_ref, C2_Cluster& cl, RowKey key)
+{
+    if (cl.key_base > key) return -1;
+    key -= cl.key_base;
+    C2_CondensedRef<RowKey> ref(cl.columns[1]);
+    C2_PackedArray<RowKey> keys = ref.as_packed_array(alloc, cl_ref, cl.num_entries);
+    int index = keys.bsearch(key);
+    // FIXME: check for invalid bit in column[0] as well
+    return index;
+}
+
+size_t C2_full_cluster_size(SlabAlloc& alloc, C2_Ref<C2_Cluster>& cl, int num_columns)
+{
+    C2_Cluster* p = cl.translate(alloc);
+    size_t res = C2_chunk_size(p);
+    if (cl.is_read_only()) {
+        return res;
+    }
+    // in writable memory the chunk_size includes only the C2 struct itself,
+    // so we need to add the size of each column array manually:
+    for (int i = 0; i <= num_columns; ++i) {
+        C2_Ref<C2_DynType> ref(cl, p->columns[i]);
+        res += ref.array_size(p->num_entries);
+        res = align(res, 8);
+    }
+    return res;
+}
 
 // Table layout
 // - indexing levels
@@ -2091,6 +2197,11 @@ struct C2_Table {
     C2_ColumnDef column_defs[1]; // actually [num_column_defs]
 };
 
+size_t storage_size(C2_Table& table)
+{
+    size_t res = sizeof(C2_Table) + table.num_column_defs * sizeof(C2_Table::C2_ColumnDef);
+    return res;
+}
 
 // BPtree interior node
 // - number of entries
@@ -2100,10 +2211,40 @@ struct C2_Table {
 //
 struct C2_BPTree {
     uint16_t num_entries;
-    uint64_t key_base;
-    C2_Ref key_offsets;
-    C2_Ref next_level;
+    uint16_t spare;
+    uint32_t spare2;
+    struct C2_Entry {
+        uint64_t key_offset;
+        C2_Ref<C2_DynType> next_level;
+    };
+    C2_Entry entries[1]; // actually [num_entries]
 };
+
+C2_Ref<C2_Cluster> find_cluster(SlabAlloc& alloc, int levels, C2_BPTree* node, RowKey key)
+{
+    C2_BPTree::C2_Entry* frst = node->entries;
+    while (levels) {
+        --levels;
+        C2_BPTree::C2_Entry* last = node->entries + node->num_entries;
+        int num = node->num_entries;
+        while (num > 1) {
+            num >>= 1;
+            C2_BPTree::C2_Entry* mid = frst + (last - frst)/2;
+            if (key < mid->key_offset) last = mid;
+            else frst = mid;
+        }
+        C2_Ref<C2_BPTree> ref = frst->next_level;
+        node = ref.translate(alloc);
+    }
+    C2_Ref<C2_Cluster> ref = frst->next_level;
+    return ref;
+}
+
+size_t storage_size(C2_BPTree& tree)
+{
+    size_t res = sizeof(C2_BPTree) + tree.num_entries * sizeof(C2_BPTree::C2_Entry);
+    return res;
+}
 
 // Group layout / top cluster
 // - number of table keys
