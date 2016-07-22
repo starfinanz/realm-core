@@ -2174,6 +2174,56 @@ size_t C2_full_cluster_size(SlabAlloc& alloc, C2_Ref<C2_Cluster>& cl, int num_co
     return res;
 }
 
+// BPtree interior node
+template<typename TKey, typename TValue>
+struct C2_BPTree {
+    uint16_t num_entries;
+    uint16_t spare;
+    uint32_t spare2;
+    struct C2_Entry {
+        TKey key_max;
+        union {
+            C2_Ref<C2_BPTree<TKey,TValue>> children;
+            TValue value;
+        };
+    };
+    C2_Entry entries[1]; // actually [num_entries]
+
+    TValue bptree_find(SlabAlloc& alloc, int levels, TKey key);
+};
+
+template<typename TKey, typename TValue>
+TValue C2_BPTree<TKey,TValue>::bptree_find(SlabAlloc& alloc, int levels, TKey key)
+{
+    auto node = this;
+    C2_Entry* found = nullptr;
+    C2_Entry _key;
+    _key.key_max = key;
+    while (levels > 1) {
+        --levels;
+        C2_Entry* first = node->entries;
+        C2_Entry* last = node->entries + node->num_entries;
+        found = std::upper_bound(first, last, _key, 
+                                 [](C2_Entry& f, C2_Entry& l){ return f.key_max < l.key_max;});
+        if (found == last) throw std::runtime_error("not_found");
+        --levels;
+        auto ref = found->children;
+        node = ref.translate(alloc);
+    }
+    C2_Entry* first = node->entries;
+    C2_Entry* last = node->entries + node->num_entries;
+    found = std::upper_bound(first, last, _key, 
+                             [](C2_Entry& f, C2_Entry& l){ return f.key_max < l.key_max;});
+    if (found == last) throw std::runtime_error("not_found");
+    return found->value;
+}
+/*
+size_t storage_size(C2_BPTree& tree)
+{
+    size_t res = sizeof(C2_BPTree) + tree.num_entries * sizeof(C2_BPTree::C2_Entry);
+    return res;
+}
+*/
 // Table layout
 // - indexing levels
 //   - 0: no indexing, leaf cluster follows directly after column definitions
@@ -2189,6 +2239,7 @@ struct C2_Table {
     uint8_t bptree_levels;
     uint16_t num_column_defs;
     uint16_t num_columns;
+    C2_CondensedRef<C2_BPTree<RowKey,C2_DynType>> tree;
     struct C2_ColumnDef {
         uint16_t index;
         uint8_t type;
@@ -2203,54 +2254,12 @@ size_t storage_size(C2_Table& table)
     return res;
 }
 
-// BPtree interior node
-// - number of entries
-// - key base
-// - column[0]: key offsets for binary search
-// - column[1]: corresponding ref to next level
-//
-struct C2_BPTree {
-    uint16_t num_entries;
-    uint16_t spare;
-    uint32_t spare2;
-    struct C2_Entry {
-        uint64_t key_offset;
-        C2_Ref<C2_DynType> next_level;
-    };
-    C2_Entry entries[1]; // actually [num_entries]
-};
-
-C2_Ref<C2_Cluster> find_cluster(SlabAlloc& alloc, int levels, C2_BPTree* node, RowKey key)
-{
-    C2_BPTree::C2_Entry* frst = node->entries;
-    while (levels) {
-        --levels;
-        C2_BPTree::C2_Entry* last = node->entries + node->num_entries;
-        int num = node->num_entries;
-        while (num > 1) {
-            num >>= 1;
-            C2_BPTree::C2_Entry* mid = frst + (last - frst)/2;
-            if (key < mid->key_offset) last = mid;
-            else frst = mid;
-        }
-        C2_Ref<C2_BPTree> ref = frst->next_level;
-        node = ref.translate(alloc);
-    }
-    C2_Ref<C2_Cluster> ref = frst->next_level;
-    return ref;
-}
-
-size_t storage_size(C2_BPTree& tree)
-{
-    size_t res = sizeof(C2_BPTree) + tree.num_entries * sizeof(C2_BPTree::C2_Entry);
-    return res;
-}
-
 // Group layout / top cluster
 // - number of table keys
-// - column[0]: table ref for key, 0 if no table
-// !! consolidate all top data into a single cluster, including free lists !!
-//
-// While in writable memory (not on disk), the columns are indivially allocated
-// and hence also prefixed with a 4-byte capacity, and the size of the cluster
-// is just the cluster itself. When written to disk, the cluster and its arrays
+
+struct C2_Top {
+    C2_Ref<C2_Cluster> freelists;
+    // FIXME: other structures
+    C2_BPTree<RowKey,C2_Ref<C2_Table>> tables; // runtime size, must come last
+};
+
