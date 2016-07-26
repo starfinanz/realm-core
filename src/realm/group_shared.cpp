@@ -2263,3 +2263,56 @@ struct C2_Top {
     C2_BPTree<RowKey,C2_Ref<C2_Table>> tables; // runtime size, must come last
 };
 
+// TODO: Change to generic flow for locating an entry, so it can
+// be shared among data types and among read and writes
+int64_t get_int(C2_OptimizationContext& ctx, 
+                TblKey tbl_key, ColKey col_key, RowKey, row_key)
+{
+    bool same_version = (m_readlock.m_version == ctx.last_version)
+        && (m_last_change == ctx.last_change);
+    if (!same_version) {
+        ctx.last_version = m_readlock.m_version;
+        ctx.last_change = m_last_change;
+    }
+
+    // Get the C2_Table, reusing as much as possible from context:
+    bool same_table_requested = (tbl_key == ctx.last_table_key);
+    C2_Table* selected_table;
+    bool table_valid;
+    if (same_version && same_table_requested) {
+        selected_table = ctx.last_table;
+        table_valid = true;
+    }
+    else {
+        // TODO: traverse top bptree to get to table
+        table_valid = (selected_table == ctx.last_table);
+        ctx.last_table = selected_table;
+        ctx.last_table_key = tbl_key;
+    }
+
+    {
+        // TODO: use selected table to map col_key to col_ndx
+    }
+
+    // Get the C2_Cluster, reusing as much as possible from context:
+    bool same_cluster_requested = (row_key >= last_start_row_in_cluster)
+        && (row_key < last_last_row_in_cluster);
+    C2_Cluster* selected_cluster;
+    bool cluster_valid;
+    if (table_valid && same_cluster_requested) {
+        selected_cluster = ctx.last_cluster;
+        cluster_valid = true;
+    }
+    else {
+        // TODO: traverse table bptree to get to cluster
+        cluster_valid = (selected_cluster == ctx.last_cluster);
+        ctx.last_cluster = selected_cluster;
+        // TODO: capture min and max of the cluster in the context
+    }
+
+    // TODO: reuse the exact index if possible
+
+    // TODO: reuse neighbour indexes if possible
+
+    // TODO: otherwise do a binary search in the cluster for the index
+}

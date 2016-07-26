@@ -59,8 +59,27 @@ using ColKey = uint64_t;
 using RowKey = uint64_t;
 using TblKey = uint64_t;
 
+struct C2_Table;
+struct C2_Cluster;
+
+struct C2_OptimizationContext {
+    uint64_t last_version; // version used for last access
+    uint32_t last_change; // changecount within ongoing write transaction
+    TblKey last_table_key;
+    C2_Table* last_table; // table reached during last access. If a new lookup
+    // reaches the same table, and the version is still alive, then the stuff 
+    // below the table is unchanged
+    RowKey last_start_row_in_cluster;
+    RowKey last_last_row_in_cluster;
+    C2_Cluster* last_cluster; // cluster reached during last access.
+    // If a new lookup reaches the same cluster, and the version is still alive,
+    // then the content of the cluster is unchanged
+    RowKey last_row_key; // key used to identify row during last lookup
+    int last_row_index; // corresponding index into cluster
+};
+
 struct C2_Transaction {
-    int64_t get_int(TblKey, ColKey, RowKey);
+    int64_t get_int(C2_OptimizationContext&, TblKey, ColKey, RowKey);
     void set_int(TblKey, ColKey, RowKey, int64_t);
     RowKey create_row(TblKey);
     void create_row_at_key(TblKey, RowKey);
