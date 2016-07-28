@@ -449,12 +449,6 @@ private:
     template<class Tab, class View, class Impl>
     friend class BasicTableViewBase;
 
-    // Called by table to adjust any row references:
-    void adj_row_acc_insert_rows(size_t row_ndx, size_t num_rows) noexcept;
-    void adj_row_acc_erase_row(size_t row_ndx) noexcept;
-    void adj_row_acc_move_over(size_t from_row_ndx, size_t to_row_ndx) noexcept;
-    void adj_row_acc_clear() noexcept;
-
     template<typename Tab>
     friend class BasicTableView;
 };
@@ -811,7 +805,6 @@ inline TableViewBase::TableViewBase(Table* parent):
     Allocator& alloc = m_row_indexes.get_alloc();
     _impl::DeepArrayRefDestroyGuard ref_guard(alloc);
     ref_guard.reset(IntegerColumn::create(alloc)); // Throws
-    parent->register_view(this); // Throws
     m_row_indexes.get_root_array()->init_from_ref(ref_guard.release());
 }
 
@@ -830,7 +823,6 @@ inline TableViewBase::TableViewBase(Table* parent, Query& query, size_t start, s
     Allocator& alloc = m_row_indexes.get_alloc();
     _impl::DeepArrayRefDestroyGuard ref_guard(alloc);
     ref_guard.reset(IntegerColumn::create(alloc)); // Throws
-    parent->register_view(this); // Throws
     m_row_indexes.get_root_array()->init_from_ref(ref_guard.release());
 }
 
@@ -848,7 +840,6 @@ inline TableViewBase::TableViewBase(Table *parent, Table *linked_table, size_t c
     Allocator& alloc = m_row_indexes.get_alloc();
     _impl::DeepArrayRefDestroyGuard ref_guard(alloc);
     ref_guard.reset(IntegerColumn::create(alloc)); // Throws
-    parent->register_view(this); // Throws
     m_row_indexes.get_root_array()->init_from_ref(ref_guard.release());
 }
 
@@ -876,8 +867,6 @@ inline TableViewBase::TableViewBase(const TableViewBase& tv):
     Allocator& alloc = m_row_indexes.get_alloc();
     MemRef mem = tv.m_row_indexes.get_root_array()->clone_deep(alloc); // Throws
     _impl::DeepArrayRefDestroyGuard ref_guard(mem.get_ref(), alloc);
-    if (m_table)
-        m_table->register_view(this); // Throws
     m_row_indexes.get_root_array()->init_from_mem(mem);
     ref_guard.release();
 }
@@ -902,14 +891,11 @@ inline TableViewBase::TableViewBase(TableViewBase&& tv) noexcept:
     m_last_seen_version(tv.m_last_seen_version),
     m_num_detached_refs(tv.m_num_detached_refs)
 {
-    if (m_table)
-        m_table->move_registered_view(&tv, this);
 }
 
 inline TableViewBase::~TableViewBase() noexcept
 {
     if (m_table) {
-        m_table->unregister_view(this);
         m_table = TableRef();
     }
     m_row_indexes.destroy(); // Shallow
@@ -917,12 +903,7 @@ inline TableViewBase::~TableViewBase() noexcept
 
 inline TableViewBase& TableViewBase::operator=(TableViewBase&& tv) noexcept
 {
-    if (m_table)
-        m_table->unregister_view(this);
     m_table = std::move(tv.m_table);
-    if (m_table)
-        m_table->move_registered_view(&tv, this);
-
     m_row_indexes.move_assign(tv.m_row_indexes);
     m_query = std::move(tv.m_query);
     m_num_detached_refs = tv.m_num_detached_refs;
@@ -948,11 +929,7 @@ inline TableViewBase& TableViewBase::operator=(const TableViewBase& tv)
         return *this;
 
     if (m_table != tv.m_table) {
-        if (m_table)
-            m_table->unregister_view(this);
         m_table = tv.m_table;
-        if (m_table)
-            m_table->register_view(this);
     }
 
     Allocator& alloc = m_row_indexes.get_alloc();

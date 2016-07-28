@@ -1081,45 +1081,6 @@ void Table::update_link_target_tables_after_column_move(size_t moved_from, size_
 }
 
 
-void Table::register_row_accessor(RowBase* row) const noexcept
-{
-    LockGuard lock(m_accessor_mutex);
-    row->m_prev = nullptr;
-    row->m_next = m_row_accessors;
-    if (m_row_accessors)
-        m_row_accessors->m_prev = row;
-    m_row_accessors = row;
-}
-
-
-void Table::unregister_row_accessor(RowBase* row) const noexcept
-{
-    LockGuard lock(m_accessor_mutex);
-    do_unregister_row_accessor(row);
-}
-
-
-void Table::do_unregister_row_accessor(RowBase* row) const noexcept
-{
-    if (row->m_prev) {
-        row->m_prev->m_next = row->m_next;
-    }
-    else { // is head of list
-        m_row_accessors = row->m_next;
-    }
-    if (row->m_next)
-        row->m_next->m_prev = row->m_prev;
-}
-
-
-void Table::discard_row_accessors() noexcept
-{
-    LockGuard lock(m_accessor_mutex);
-    for (RowBase* row = m_row_accessors; row; row = row->m_next)
-        row->m_table.reset(); // Detach
-    m_row_accessors = nullptr;
-}
-
 
 void Table::update_subtables(Descriptor& desc, SubtableUpdater* updater)
 {
@@ -1292,50 +1253,8 @@ void Table::detach() noexcept
     discard_child_accessors();
     destroy_column_accessors();
     m_cols.clear();
-    // FSA: m_cols.destroy();
-    discard_views();
 }
 
-
-void Table::unregister_view(const TableViewBase* view) noexcept
-{
-    LockGuard lock(m_accessor_mutex);
-    // Fixme: O(n) may be unacceptable - if so, put and maintain
-    // iterator or index in TableViewBase.
-    for (auto& v : m_views) {
-        if (v == view) {
-            v = m_views.back();
-            m_views.pop_back();
-            break;
-        }
-    }
-}
-
-
-void Table::move_registered_view(const TableViewBase* old_addr,
-                                 const TableViewBase* new_addr) noexcept
-{
-    LockGuard lock(m_accessor_mutex);
-    for (auto& view : m_views) {
-        if (view == old_addr) {
-            // casting away constness here... all operations on members
-            // of  m_views are preserving logical constness on the table views.
-            view = const_cast<TableViewBase*>(new_addr);
-            return;
-        }
-    }
-    REALM_ASSERT(false);
-}
-
-
-void Table::discard_views() noexcept
-{
-    LockGuard lock(m_accessor_mutex);
-    for (const auto& view : m_views) {
-        view->detach();
-    }
-    m_views.clear();
-}
 
 
 void Table::discard_child_accessors() noexcept
@@ -1343,8 +1262,6 @@ void Table::discard_child_accessors() noexcept
     // This function must assume no more than minimal consistency of the
     // accessor hierarchy. This means in particular that it cannot access the
     // underlying node structure. See AccessorConsistencyLevels.
-
-    discard_row_accessors();
 
     for (auto& col : m_cols) {
         if (col != nullptr) {
@@ -2098,8 +2015,6 @@ void Table::insert_empty_row(size_t row_ndx, size_t num_rows)
         bool insert_nulls = is_nullable(col_ndx);
         col.insert_rows(row_ndx, num_rows, m_size, insert_nulls); // Throws
     }
-    if (row_ndx < m_size)
-        adj_row_acc_insert_rows(row_ndx, num_rows);
     m_size += num_rows;
 
     if (Replication* repl = get_repl()) {
@@ -2279,7 +2194,6 @@ void Table::do_remove(size_t row_ndx, bool broken_reciprocal_backlinks)
         col.erase_rows(row_ndx, num_rows_to_erase, m_size,
                           broken_reciprocal_backlinks); // Throws
     }
-    adj_row_acc_erase_row(row_ndx);
     --m_size;
     bump_version();
 }
@@ -2295,8 +2209,6 @@ void Table::do_move_last_over(size_t row_ndx, bool broken_reciprocal_backlinks)
         size_t prior_num_rows = m_size;
         col.move_last_row_over(row_ndx, prior_num_rows, broken_reciprocal_backlinks); // Throws
     }
-    size_t last_row_ndx = m_size - 1;
-    adj_row_acc_move_over(last_row_ndx, row_ndx);
     --m_size;
     bump_version();
 }
@@ -2311,7 +2223,6 @@ void Table::do_swap_rows(size_t row_ndx_1, size_t row_ndx_2)
         ColumnBase& col = get_column_base(col_ndx);
         col.swap_rows(row_ndx_1, row_ndx_2);
     }
-    adj_row_acc_swap_rows(row_ndx_1, row_ndx_2);
     bump_version();
 }
 
@@ -2401,16 +2312,6 @@ void Table::do_clear(bool broken_reciprocal_backlinks)
         col.clear(m_size, broken_reciprocal_backlinks); // Throws
     }
     m_size = 0;
-
-    discard_row_accessors();
-
-    {
-        LockGuard lock(m_accessor_mutex);
-
-        for (auto& view : m_views) {
-            view->adj_row_acc_clear();
-        }
-    }
 
     bump_version();
 }
@@ -5265,8 +5166,6 @@ void Table::adj_acc_insert_rows(size_t row_ndx, size_t num_rows) noexcept
     // accessor hierarchy. This means in particular that it cannot access the
     // underlying node structure. See AccessorConsistencyLevels.
 
-    adj_row_acc_insert_rows(row_ndx, num_rows);
-
     // Adjust column and subtable accessors after insertion of new rows
     for (auto& col : m_cols) {
         if (col != nullptr) {
@@ -5282,8 +5181,6 @@ void Table::adj_acc_erase_row(size_t row_ndx) noexcept
     // accessor hierarchy. This means in particular that it cannot access the
     // underlying node structure. See AccessorConsistencyLevels.
 
-    adj_row_acc_erase_row(row_ndx);
-
     // Adjust subtable accessors after removal of a row
     for (auto& col : m_cols) {
         if (col != nullptr) {
@@ -5297,8 +5194,6 @@ void Table::adj_acc_swap_rows(size_t row_ndx_1, size_t row_ndx_2) noexcept
     // This function must assume no more than minimal consistency of the
     // accessor hierarchy. This means in particular that it cannot access the
     // underlying node structure. See AccessorConsistencyLevels.
-
-    adj_row_acc_swap_rows(row_ndx_1, row_ndx_2);
 
     // Adjust subtable accessors after row swap
     for (auto& col : m_cols) {
@@ -5315,8 +5210,6 @@ void Table::adj_acc_move_over(size_t from_row_ndx, size_t to_row_ndx) noexcept
     // accessor hierarchy. This means in particular that it cannot access the
     // underlying node structure. See AccessorConsistencyLevels.
 
-    adj_row_acc_move_over(from_row_ndx, to_row_ndx);
-
     for (auto& col : m_cols) {
         if (col != nullptr) {
             col->adj_acc_move_over(from_row_ndx, to_row_ndx);
@@ -5331,19 +5224,9 @@ void Table::adj_acc_clear_root_table() noexcept
     // accessor hierarchy. This means in particular that it cannot access the
     // underlying node structure. See AccessorConcistencyLevels.
 
-    discard_row_accessors();
-
     for (auto& col : m_cols) {
         if (col != nullptr) {
             col->adj_acc_clear_root_table();
-        }
-    }
-
-    {
-        LockGuard lock(m_accessor_mutex);
-        // Adjust rows in tableviews after removal of all rows
-        for (auto& view : m_views) {
-            view->adj_row_acc_clear();
         }
     }
 }
@@ -5360,99 +5243,6 @@ void Table::adj_acc_clear_nonroot_table() noexcept
     m_columns.detach();
 }
 
-
-void Table::adj_row_acc_insert_rows(size_t row_ndx, size_t num_rows) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-
-    // Adjust row accessors after insertion of new rows
-    LockGuard lock(m_accessor_mutex);
-    for (RowBase* row = m_row_accessors; row; row = row->m_next) {
-        if (row->m_row_ndx >= row_ndx)
-            row->m_row_ndx += num_rows;
-    }
-
-    // Adjust rows in tableviews after insertion of new rows
-    for (auto& view : m_views) {
-        view->adj_row_acc_insert_rows(row_ndx, num_rows);
-    }
-}
-
-
-void Table::adj_row_acc_erase_row(size_t row_ndx) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-
-    // Adjust row accessors after removal of a row
-    LockGuard lock(m_accessor_mutex);
-    RowBase* row = m_row_accessors;
-    while (row) {
-        RowBase* next = row->m_next;
-        if (row->m_row_ndx == row_ndx) {
-            row->m_table.reset();
-            do_unregister_row_accessor(row);
-        }
-        else if (row->m_row_ndx > row_ndx) {
-            --row->m_row_ndx;
-        }
-        row = next;
-    }
-
-    // Adjust rows in tableviews after removal of row
-    for (auto& view : m_views) {
-        view->adj_row_acc_erase_row(row_ndx);
-    }
-}
-
-void Table::adj_row_acc_swap_rows(size_t row_ndx_1, size_t row_ndx_2) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-
-    // Adjust row accessors after swap
-    LockGuard lock(m_accessor_mutex);
-    RowBase* row = m_row_accessors;
-    while (row) {
-        if (row->m_row_ndx == row_ndx_1) {
-            row->m_row_ndx = row_ndx_2;
-        }
-        else if (row->m_row_ndx == row_ndx_2) {
-            row->m_row_ndx = row_ndx_1;
-        }
-        row = row->m_next;
-    }
-}
-
-
-void Table::adj_row_acc_move_over(size_t from_row_ndx, size_t to_row_ndx) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-    LockGuard lock(m_accessor_mutex);
-    RowBase* row = m_row_accessors;
-    while (row) {
-        RowBase* next = row->m_next;
-        if (row->m_row_ndx == to_row_ndx) {
-            row->m_table.reset();
-            do_unregister_row_accessor(row);
-        }
-        else if (row->m_row_ndx == from_row_ndx) {
-            row->m_row_ndx = to_row_ndx;
-        }
-        row = next;
-    }
-
-    // Adjust rows in tableviews after move over of new row
-    for (auto& view : m_views) {
-        view->adj_row_acc_move_over(from_row_ndx, to_row_ndx);
-    }
-}
 
 
 void Table::adj_insert_column(size_t col_ndx)
@@ -5699,7 +5489,6 @@ void Table::refresh_column_accessors(size_t col_ndx_begin)
 
     // Set table size
     if (m_cols.empty()) {
-        discard_row_accessors();
         m_size = 0;
     }
     else {
@@ -5794,18 +5583,6 @@ void Table::verify() const
         m_top.verify();
     m_columns.verify();
     m_spec.verify();
-
-
-    // Verify row accessors
-    {
-        LockGuard lock(m_accessor_mutex);
-        for (RowBase* row = m_row_accessors; row; row = row->m_next) {
-            // Check that it is attached to this table
-            REALM_ASSERT_3(row->m_table.get(), ==, this);
-            // Check that its row index is not out of bounds
-            REALM_ASSERT_3(row->m_row_ndx, <, size());
-        }
-    }
 
     // Verify column accessors
     {

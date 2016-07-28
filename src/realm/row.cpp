@@ -28,7 +28,6 @@ using namespace realm;
 void RowBase::attach(Table* table, size_t row_ndx) noexcept
 {
     if (table) {
-        table->register_row_accessor(this);
         m_table.reset(table);
         m_row_ndx = row_ndx;
     }
@@ -37,10 +36,6 @@ void RowBase::attach(Table* table, size_t row_ndx) noexcept
 void RowBase::reattach(Table* table, size_t row_ndx) noexcept
 {
     if (m_table.get() != table) {
-        if (m_table)
-            m_table->unregister_row_accessor(this);
-        if (table)
-            table->register_row_accessor(this);
         m_table.reset(table);
     }
     m_row_ndx = row_ndx;
@@ -48,10 +43,6 @@ void RowBase::reattach(Table* table, size_t row_ndx) noexcept
 
 void RowBase::impl_detach() noexcept
 {
-    if (m_table) {
-        m_table->unregister_row_accessor(this);
-        m_table.reset();
-    }
 }
 
 RowBase::RowBase(const RowBase& source, HandoverPatch& patch)
@@ -70,8 +61,6 @@ void RowBase::generate_patch(const RowBase& source, HandoverPatch& patch)
 void RowBase::apply_patch(HandoverPatch& patch, Group& group)
 {
     m_table = Table::create_from_and_consume_patch(patch.m_table, group);
-    if (m_table)
-        m_table->register_row_accessor(this);
     m_row_ndx = patch.row_ndx;
 }
 

@@ -84,7 +84,6 @@ TableViewBase::TableViewBase(const TableViewBase& src, HandoverPatch& patch,
 void TableViewBase::apply_patch(HandoverPatch& patch, Group& group)
 {
     m_table = Table::create_from_and_consume_patch(patch.m_table, group);
-    m_table->register_view(this);
     m_query.apply_patch(patch.query_patch, group);
     m_linkview_source = LinkView::create_from_and_consume_patch(patch.linkview_patch, group);
 
@@ -562,55 +561,6 @@ uint_fast64_t TableViewBase::sync_if_needed() const
 
 
 
-void TableViewBase::adj_row_acc_insert_rows(size_t row_ndx, size_t num_rows) noexcept
-{
-    m_row_indexes.adjust_ge(int_fast64_t(row_ndx), num_rows);
-}
-
-
-void TableViewBase::adj_row_acc_erase_row(size_t row_ndx) noexcept
-{
-    size_t it = 0;
-    for (;;) {
-        it = m_row_indexes.find_first(row_ndx, it);
-        if (it == not_found)
-            break;
-        ++m_num_detached_refs;
-        m_row_indexes.set(it, -1);
-    }
-    m_row_indexes.adjust_ge(int_fast64_t(row_ndx)+1, -1);
-}
-
-
-void TableViewBase::adj_row_acc_move_over(size_t from_row_ndx, size_t to_row_ndx) noexcept
-{
-    size_t it = 0;
-    // kill any refs to the target row ndx
-    for (;;) {
-        it = m_row_indexes.find_first(to_row_ndx, it);
-        if (it == not_found)
-            break;
-        ++m_num_detached_refs;
-        m_row_indexes.set(it, -1);
-    }
-    // adjust any refs to the source row ndx to point to the target row ndx.
-    it = 0;
-    for (;;) {
-        it = m_row_indexes.find_first(from_row_ndx, it);
-        if (it == not_found)
-            break;
-        m_row_indexes.set(it, to_row_ndx);
-    }
-}
-
-
-void TableViewBase::adj_row_acc_clear() noexcept
-{
-    m_num_detached_refs = m_row_indexes.size();
-    for (size_t i = 0, num_rows = m_row_indexes.size(); i < num_rows; ++i)
-        m_row_indexes.set(i, -1);
-}
-
 
 void TableView::remove(size_t row_ndx, RemoveMode underlying_mode)
 {
@@ -651,14 +601,11 @@ void TableView::clear(RemoveMode underlying_mode)
     // Temporarily unregister this view so that it's not pointlessly updated
     // for the row removals
     using tf = _impl::TableFriend;
-    tf::unregister_view(*m_table, this);
-
     bool is_move_last_over = (underlying_mode == RemoveMode::unordered);
     tf::batch_erase_rows(*m_table, m_row_indexes, is_move_last_over); // Throws
 
     m_row_indexes.clear();
     m_num_detached_refs = 0;
-    tf::register_view(*m_table, this); // Throws
 
     // It is important to not accidentally bring us in sync, if we were
     // not in sync to start with:

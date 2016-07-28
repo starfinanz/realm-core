@@ -878,17 +878,6 @@ private:
     // always null for tables with shared descriptor.
     mutable Descriptor* m_descriptor;
 
-    // Table view instances
-    // Access needs to be protected by m_accessor_mutex
-    typedef std::vector<TableViewBase*> views;
-    mutable views m_views;
-
-    // Points to first bound row accessor, or is null if there are none.
-    mutable RowBase* m_row_accessors = nullptr;
-
-    // Mutex which must be locked any time the row accessor chain or m_views is used
-    mutable util::Mutex m_accessor_mutex;
-
     // Used for queries: Items are added with link() method during buildup of query
     mutable std::vector<size_t> m_link_chain;
 
@@ -1053,23 +1042,11 @@ private:
     /// any, and it does not discard column accessors either.
     void discard_child_accessors() noexcept;
 
-    void discard_row_accessors() noexcept;
-
     // Detach the type descriptor accessor if it exists.
     void discard_desc_accessor() noexcept;
 
     void bind_ptr() const noexcept;
     void unbind_ptr() const noexcept;
-
-    void register_view(const TableViewBase* view);
-    void unregister_view(const TableViewBase* view) noexcept;
-    void move_registered_view(const TableViewBase* old_addr,
-                              const TableViewBase* new_addr) noexcept;
-    void discard_views() noexcept;
-
-    void register_row_accessor(RowBase*) const noexcept;
-    void unregister_row_accessor(RowBase*) const noexcept;
-    void do_unregister_row_accessor(RowBase*) const noexcept;
 
     class UnbindGuard;
 
@@ -1305,12 +1282,6 @@ private:
 
     void adj_acc_clear_root_table() noexcept;
     void adj_acc_clear_nonroot_table() noexcept;
-    void adj_row_acc_insert_rows(size_t row_ndx, size_t num_rows) noexcept;
-    void adj_row_acc_erase_row(size_t row_ndx) noexcept;
-    void adj_row_acc_swap_rows(size_t row_ndx_1, size_t row_ndx_2) noexcept;
-
-    /// Called by adj_acc_move_over() to adjust row accessors.
-    void adj_row_acc_move_over(size_t from_row_ndx, size_t to_row_ndx) noexcept;
 
     void adj_insert_column(size_t col_ndx);
     void adj_erase_column(size_t col_ndx) noexcept;
@@ -1390,7 +1361,7 @@ private:
     friend class ParentNode;
     template<class>
     friend class SequentialGetter;
-    friend class RowBase;
+//    friend class RowBase;
     friend class LinksToNode;
     friend class LinkMap;
     friend class LinkView;
@@ -1499,15 +1470,6 @@ inline void Table::unbind_ptr() const noexcept
 
     std::atomic_thread_fence(std::memory_order_acquire);
     delete this;
-}
-
-inline void Table::register_view(const TableViewBase* view)
-{
-    util::LockGuard lock(m_accessor_mutex);
-    // Casting away constness here - operations done on tableviews
-    // through m_views are all internal and preserving "some" kind
-    // of logical constness.
-    m_views.push_back(const_cast<TableViewBase*>(view));
 }
 
 inline bool Table::is_attached() const noexcept
@@ -2060,11 +2022,6 @@ public:
         table.detach();
     }
 
-    static void discard_row_accessors(Table& table) noexcept
-    {
-        table.discard_row_accessors();
-    }
-
     static void discard_child_accessors(Table& table) noexcept
     {
         table.discard_child_accessors();
@@ -2375,15 +2332,6 @@ public:
         return table.get_repl();
     }
 
-    static void register_view(Table& table, const TableViewBase* view)
-    {
-        table.register_view(view); // Throws
-    }
-
-    static void unregister_view(Table& table, const TableViewBase* view) noexcept
-    {
-        table.unregister_view(view);
-    }
 };
 
 
