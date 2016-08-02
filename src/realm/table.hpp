@@ -67,6 +67,7 @@ namespace _impl { class TableFriend; }
 
 class Replication;
 
+using RowKey = uint_fast64_t;
 
 /// The Table class is non-polymorphic, that is, it has no virtual
 /// functions. This is important because it ensures that there is no run-time
@@ -346,8 +347,8 @@ public:
     typedef BasicRowExpr<Table> RowExpr;
     typedef BasicRowExpr<const Table> ConstRowExpr;
 
-    RowExpr get(size_t row_ndx) noexcept;
-    ConstRowExpr get(size_t row_ndx) const noexcept;
+    RowExpr get(RowKey row_key) noexcept;
+    ConstRowExpr get(RowKey row_key) const noexcept;
 
     RowExpr front() noexcept;
     ConstRowExpr front() const noexcept;
@@ -355,8 +356,8 @@ public:
     RowExpr back() noexcept;
     ConstRowExpr back() const noexcept;
 
-    RowExpr operator[](size_t row_ndx) noexcept;
-    ConstRowExpr operator[](size_t row_ndx) const noexcept;
+    RowExpr operator[](RowKey row_key) noexcept;
+    ConstRowExpr operator[](RowKey row_key) const noexcept;
 
 
     //@{
@@ -379,13 +380,13 @@ public:
     /// the effect is exactly as if each row had been removed individually. See
     /// Descriptor::set_link_type() for details.
 
-    size_t add_empty_row(size_t num_rows = 1);
-    void insert_empty_row(size_t row_ndx, size_t num_rows = 1);
-    void remove(size_t row_ndx);
+    RowKey add_empty_row(size_t num_rows = 1);
+    RowKey insert_empty_row(RowKey row_key, size_t num_rows = 1);
+    void remove(RowKey row_key);
     void remove_last();
-    void move_last_over(size_t row_ndx);
+    void move_last_over(RowKey row_key);
     void clear();
-    void swap_rows(size_t row_ndx_1, size_t row_ndx_2);
+    void swap_rows(RowKey row_key_1, RowKey row_key_2);
     //@}
 
     /// Replaces all links to \a row_ndx with links to \a new_row_ndx.
@@ -397,35 +398,35 @@ public:
     /// \sa Table::move_last_over()
     /// \sa Table::set_int_unique()
     /// \sa Table::set_string_unique()
-    void change_link_targets(size_t row_ndx, size_t new_row_ndx);
+    void change_link_targets(RowKey row_key, RowKey new_row_key);
 
     // Get cell values. Will assert if the requested type does not match the column type
-    int64_t     get_int(size_t column_ndx, size_t row_ndx) const noexcept;
-    bool        get_bool(size_t column_ndx, size_t row_ndx) const noexcept;
-    OldDateTime get_olddatetime(size_t column_ndx, size_t row_ndx) const noexcept;
-    float       get_float(size_t column_ndx, size_t row_ndx) const noexcept;
-    double      get_double(size_t column_ndx, size_t row_ndx) const noexcept;
-    StringData  get_string(size_t column_ndx, size_t row_ndx) const noexcept;
-    BinaryData  get_binary(size_t column_ndx, size_t row_ndx) const noexcept;
-    Mixed       get_mixed(size_t column_ndx, size_t row_ndx) const noexcept;
-    DataType    get_mixed_type(size_t column_ndx, size_t row_ndx) const noexcept;
-    Timestamp   get_timestamp(size_t column_ndx, size_t row_ndx) const noexcept;
+    int64_t     get_int(size_t column_ndx, RowKey row_key) const noexcept;
+    bool        get_bool(size_t column_ndx, RowKey row_key) const noexcept;
+    OldDateTime get_olddatetime(size_t column_ndx, RowKey row_key) const noexcept;
+    float       get_float(size_t column_ndx, RowKey row_key) const noexcept;
+    double      get_double(size_t column_ndx, RowKey row_key) const noexcept;
+    StringData  get_string(size_t column_ndx, RowKey row_key) const noexcept;
+    BinaryData  get_binary(size_t column_ndx, RowKey row_key) const noexcept;
+    Mixed       get_mixed(size_t column_ndx, RowKey row_key) const noexcept;
+    DataType    get_mixed_type(size_t column_ndx, RowKey row_key) const noexcept;
+    Timestamp   get_timestamp(size_t column_ndx, RowKey row_key) const noexcept;
 
     template<class T> T get(size_t c, size_t r) const noexcept;
 
-    size_t get_link(size_t column_ndx, size_t row_ndx) const noexcept;
-    bool is_null_link(size_t column_ndx, size_t row_ndx) const noexcept;
-    LinkViewRef get_linklist(size_t column_ndx, size_t row_ndx);
-    ConstLinkViewRef get_linklist(size_t column_ndx, size_t row_ndx) const;
-    size_t get_link_count(size_t column_ndx, size_t row_ndx) const noexcept;
-    bool linklist_is_empty(size_t column_ndx, size_t row_ndx) const noexcept;
-    bool is_null(size_t column_ndx, size_t row_ndx) const noexcept;
+    size_t get_link(size_t column_ndx, RowKey row_key) const noexcept;
+    bool is_null_link(size_t column_ndx, RowKey row_key) const noexcept;
+    LinkViewRef get_linklist(size_t column_ndx, RowKey row_key);
+    ConstLinkViewRef get_linklist(size_t column_ndx, RowKey row_key) const;
+    size_t get_link_count(size_t column_ndx, RowKey row_key) const noexcept;
+    bool linklist_is_empty(size_t column_ndx, RowKey row_key) const noexcept;
+    bool is_null(size_t column_ndx, RowKey row_key) const noexcept;
 
     TableRef get_link_target(size_t column_ndx) noexcept;
     ConstTableRef get_link_target(size_t column_ndx) const noexcept;
 
     template<class T>
-    typename T::RowAccessor get_link_accessor(size_t column_ndx, size_t row_ndx);
+    typename T::RowAccessor get_link_accessor(size_t column_ndx, RowKey row_key);
 
     //@{
 
@@ -469,25 +470,25 @@ public:
     static const size_t max_string_size = 0xFFFFF8 - Array::header_size - 1;
     static const size_t max_binary_size = 0xFFFFF8 - Array::header_size;
 
-    void set_int(size_t column_ndx, size_t row_ndx, int_fast64_t value);
-    void set_int_unique(size_t column_ndx, size_t row_ndx, int_fast64_t value);
-    void set_bool(size_t column_ndx, size_t row_ndx, bool value);
-    void set_olddatetime(size_t column_ndx, size_t row_ndx, OldDateTime value);
-    void set_timestamp(size_t column_ndx, size_t row_ndx, Timestamp value);
+    void set_int(size_t column_ndx, RowKey row_key, int_fast64_t value);
+    void set_int_unique(size_t column_ndx, RowKey row_key, int_fast64_t value);
+    void set_bool(size_t column_ndx, RowKey row_key, bool value);
+    void set_olddatetime(size_t column_ndx, RowKey row_key, OldDateTime value);
+    void set_timestamp(size_t column_ndx, RowKey row_key, Timestamp value);
     template<class E>
-    void set_enum(size_t column_ndx, size_t row_ndx, E value);
-    void set_float(size_t column_ndx, size_t row_ndx, float value);
-    void set_double(size_t column_ndx, size_t row_ndx, double value);
-    void set_string(size_t column_ndx, size_t row_ndx, StringData value);
-    void set_string_unique(size_t column_ndx, size_t row_ndx, StringData value);
-    void set_binary(size_t column_ndx, size_t row_ndx, BinaryData value);
-    void set_mixed(size_t column_ndx, size_t row_ndx, Mixed value);
-    void set_link(size_t column_ndx, size_t row_ndx, size_t target_row_ndx);
-    void nullify_link(size_t column_ndx, size_t row_ndx);
-    void set_null(size_t column_ndx, size_t row_ndx);
+    void set_enum(size_t column_ndx, RowKey row_key, E value);
+    void set_float(size_t column_ndx, RowKey row_key, float value);
+    void set_double(size_t column_ndx, RowKey row_key, double value);
+    void set_string(size_t column_ndx, RowKey row_key, StringData value);
+    void set_string_unique(size_t column_ndx, RowKey row_key, StringData value);
+    void set_binary(size_t column_ndx, RowKey row_key, BinaryData value);
+    void set_mixed(size_t column_ndx, RowKey row_key, Mixed value);
+    void set_link(size_t column_ndx, RowKey row_key, size_t target_row_ndx);
+    void nullify_link(size_t column_ndx, RowKey row_key);
+    void set_null(size_t column_ndx, RowKey row_key);
 
-    void insert_substring(size_t col_ndx, size_t row_ndx, size_t pos, StringData);
-    void remove_substring(size_t col_ndx, size_t row_ndx, size_t pos, size_t substring_size = realm::npos);
+    void insert_substring(size_t col_ndx, RowKey row_key, size_t pos, StringData);
+    void remove_substring(size_t col_ndx, RowKey row_key, size_t pos, size_t substring_size = realm::npos);
 
     //@}
 
@@ -497,23 +498,23 @@ public:
     /// number of columns must be the same, and corresponding columns
     /// must have identical data types (as returned by
     /// get_column_type()).
-    void set_subtable(size_t col_ndx, size_t row_ndx, const Table*);
-    void set_mixed_subtable(size_t col_ndx, size_t row_ndx, const Table*);
+    void set_subtable(size_t col_ndx, RowKey row_key, const Table*);
+    void set_mixed_subtable(size_t col_ndx, RowKey row_key, const Table*);
 
 
     // Sub-tables (works on columns whose type is either 'subtable' or
     // 'mixed', for a value in a mixed column that is not a subtable,
     // get_subtable() returns null, get_subtable_size() returns zero,
     // and clear_subtable() replaces the value with an empty table.)
-    TableRef get_subtable(size_t column_ndx, size_t row_ndx);
-    ConstTableRef get_subtable(size_t column_ndx, size_t row_ndx) const;
-    size_t get_subtable_size(size_t column_ndx, size_t row_ndx) const noexcept;
-    void clear_subtable(size_t column_ndx, size_t row_ndx);
+    TableRef get_subtable(size_t column_ndx, RowKey row_key);
+    ConstTableRef get_subtable(size_t column_ndx, RowKey row_key) const;
+    size_t get_subtable_size(size_t column_ndx, RowKey row_key) const noexcept;
+    void clear_subtable(size_t column_ndx, RowKey row_key);
 
     // Backlinks
-    size_t get_backlink_count(size_t row_ndx, const Table& origin,
+    size_t get_backlink_count(RowKey row_key, const Table& origin,
                               size_t origin_col_ndx) const noexcept;
-    size_t get_backlink(size_t row_ndx, const Table& origin,
+    size_t get_backlink(RowKey row_key, const Table& origin,
                         size_t origin_col_ndx, size_t backlink_ndx) const noexcept;
 
 
@@ -573,19 +574,19 @@ public:
     double  average_double(size_t column_ndx, size_t* value_count = nullptr) const;
 
     // Searching
-    size_t    find_first_link(size_t target_row_index) const;
-    size_t    find_first_int(size_t column_ndx, int64_t value) const;
-    size_t    find_first_bool(size_t column_ndx, bool value) const;
-    size_t    find_first_olddatetime(size_t column_ndx, OldDateTime value) const;
-    size_t    find_first_timestamp(size_t column_ndx, Timestamp value) const;
-    size_t    find_first_float(size_t column_ndx, float value) const;
-    size_t    find_first_double(size_t column_ndx, double value) const;
-    size_t    find_first_string(size_t column_ndx, StringData value) const;
-    size_t    find_first_binary(size_t column_ndx, BinaryData value) const;
-    size_t    find_first_null(size_t column_ndx) const;
+    RowKey    find_first_link(size_t target_row_index) const;
+    RowKey    find_first_int(size_t column_ndx, int64_t value) const;
+    RowKey    find_first_bool(size_t column_ndx, bool value) const;
+    RowKey    find_first_olddatetime(size_t column_ndx, OldDateTime value) const;
+    RowKey    find_first_timestamp(size_t column_ndx, Timestamp value) const;
+    RowKey    find_first_float(size_t column_ndx, float value) const;
+    RowKey    find_first_double(size_t column_ndx, double value) const;
+    RowKey    find_first_string(size_t column_ndx, StringData value) const;
+    RowKey    find_first_binary(size_t column_ndx, BinaryData value) const;
+    RowKey    find_first_null(size_t column_ndx) const;
 
-    TableView      find_all_link(size_t target_row_index);
-    ConstTableView find_all_link(size_t target_row_index) const;
+    TableView      find_all_link(RowKey target_row_key);
+    ConstTableView find_all_link(RowKey target_row_key) const;
     TableView      find_all_int(size_t column_ndx, int64_t value);
     ConstTableView find_all_int(size_t column_ndx, int64_t value) const;
     TableView      find_all_bool(size_t column_ndx, bool value);
@@ -616,7 +617,7 @@ public:
     TableView      get_range_view(size_t begin, size_t end);
     ConstTableView get_range_view(size_t begin, size_t end) const;
 
-    TableView      get_backlink_view(size_t row_ndx, Table *src_table,
+    TableView      get_backlink_view(RowKey row_key, Table *src_table,
                                      size_t src_col_ndx);
 
 
@@ -815,7 +816,9 @@ protected:
     bool compare_rows(const Table&) const;
 
     void set_into_mixed(Table* parent, size_t col_ndx, size_t row_ndx) const;
-
+    // returns npos if key not found
+    size_t key_to_ndx(RowKey row_key) const;
+    RowKey ndx_to_key(size_t row_ndx) const;
 private:
     class SliceWriter;
 
@@ -887,16 +890,16 @@ private:
 
     mutable uint_fast64_t m_version;
 
-    void erase_row(size_t row_ndx, bool is_move_last_over);
-    void batch_erase_rows(const IntegerColumn& row_indexes, bool is_move_last_over);
-    void do_remove(size_t row_ndx, bool broken_reciprocal_backlinks);
-    void do_move_last_over(size_t row_ndx, bool broken_reciprocal_backlinks);
-    void do_swap_rows(size_t row_ndx_1, size_t row_ndx_2);
-    void do_change_link_targets(size_t row_ndx, size_t new_row_ndx);
+    void erase_row(RowKey row_key, bool is_move_last_over);
+    void batch_erase_rows(const IntegerColumn& row_keys, bool is_move_last_over);
+    void do_remove(RowKey row_key, bool broken_reciprocal_backlinks);
+    void do_move_last_over(RowKey row_key, bool broken_reciprocal_backlinks);
+    void do_swap_rows(RowKey row_key_1, RowKey row_key_2);
+    void do_change_link_targets(RowKey row_key, size_t new_row_ndx);
     void do_clear(bool broken_reciprocal_backlinks);
-    size_t do_set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx);
+    size_t do_set_link(size_t col_ndx, RowKey row_key, size_t target_row_ndx);
     template<class ColType, class T>
-    size_t do_set_unique(ColType& column, size_t row_ndx, T&& value);
+    size_t do_set_unique(ColType& column, RowKey row_key, T&& value);
 
     void upgrade_file_format();
     
@@ -1132,7 +1135,7 @@ private:
     void connect_opposite_link_columns(size_t link_col_ndx, Table& target_table,
                                        size_t backlink_col_ndx) noexcept;
 
-    size_t get_num_strong_backlinks(size_t row_ndx) const noexcept;
+    size_t get_num_strong_backlinks(RowKey row_key) const noexcept;
 
     //@{
 
@@ -1207,7 +1210,7 @@ private:
     /// It is immaterial which table remove_backlink_broken_rows() is called on,
     /// as long it that table is in the same group as the removed rows.
 
-    void cascade_break_backlinks_to(size_t row_ndx, CascadeState& state);
+    void cascade_break_backlinks_to(RowKey row_key, CascadeState& state);
     void cascade_break_backlinks_to_all_rows(CascadeState& state);
     void remove_backlink_broken_rows(const CascadeState&);
 
@@ -1217,7 +1220,7 @@ private:
     const Table* get_link_chain_target(const std::vector<size_t>& link_chain) const;
 
     /// Remove the specified row by the 'move last over' method.
-    void do_move_last_over(size_t row_ndx);
+    void do_move_last_over(RowKey row_key);
 
     // Precondition: 1 <= end - begin
     size_t* record_subtable_path(size_t* begin, size_t* end) const noexcept;
@@ -1227,7 +1230,7 @@ private:
     /// that the specified column index in a valid index into `m_cols` but does
     /// not otherwise assume more than minimal accessor consistency (see
     /// AccessorConsistencyLevels.)
-    Table* get_subtable_accessor(size_t col_ndx, size_t row_ndx) noexcept;
+    Table* get_subtable_accessor(size_t col_ndx, RowKey row_key) noexcept;
 
     /// Unless the column accessor is missing, this function returns the
     /// accessor for the target table of the specified link-type column. The
@@ -1241,47 +1244,8 @@ private:
     /// minimal accessor consistency (see AccessorConsistencyLevels.)
     Table* get_link_target_table_accessor(size_t col_ndx) noexcept;
 
-    void discard_subtable_accessor(size_t col_ndx, size_t row_ndx) noexcept;
+    void discard_subtable_accessor(size_t col_ndx, RowKey row_key) noexcept;
 
-    void adj_acc_insert_rows(size_t row_ndx, size_t num_rows) noexcept;
-    void adj_acc_erase_row(size_t row_ndx) noexcept;
-    void adj_acc_swap_rows(size_t row_ndx_1, size_t row_ndx_2) noexcept;
-
-    /// Adjust this table accessor and its subordinates after move_last_over()
-    /// (or its inverse).
-    ///
-    /// First, any row, subtable, or link list accessors registered as being at
-    /// \a to_row_ndx will be detached, as that row is assumed to have been
-    /// replaced. Next, any row, subtable, or link list accessors registered as
-    /// being at \a from_row_ndx, will be reregistered as being at \a
-    /// to_row_ndx, as the row at \a from_row_ndx is assumed to have been moved
-    /// to \a to_row_ndx.
-    ///
-    /// Crucially, if \a to_row_ndx is equal to \a from_row_ndx, then row,
-    /// subtable, or link list accessors at that row are **still detached**.
-    ///
-    /// Additionally, this function causes all link-adjacent tables to be marked
-    /// (dirty). Two tables are link-adjacent if one is the target table of a
-    /// link column of the other table. Note that this marking follows these
-    /// relations in both directions, but only to a depth of one.
-    ///
-    /// When this function is used in connection with move_last_over(), set \a
-    /// to_row_ndx to the index of the row to be removed, and set \a
-    /// from_row_ndx to the index of the last row in the table. As mentioned
-    /// earlier, this function can also be used in connection with the **inverse
-    /// of** move_last_over(), which is an operation that vacates a row by
-    /// moving its contents into a new last row of the table. In that case, set
-    /// \a to_row_ndx to one plus the index of the last row in the table, and
-    /// set \a from_row_ndx to the index of the row to be vacated.
-    ///
-    /// This function is used as part of Table::refresh_accessor_tree() to
-    /// promote the state of the accessors from Minimal Consistency into
-    /// Structural Correspondence, so it must be able to execute without
-    /// accessing the underlying array nodes.
-    void adj_acc_move_over(size_t from_row_ndx, size_t to_row_ndx) noexcept;
-
-    void adj_acc_clear_root_table() noexcept;
-    void adj_acc_clear_nonroot_table() noexcept;
 
     void adj_insert_column(size_t col_ndx);
     void adj_erase_column(size_t col_ndx) noexcept;
@@ -1432,22 +1396,22 @@ inline void Table::bump_version(bool bump_global) const noexcept
     }
 }
 
-inline void Table::remove(size_t row_ndx)
+inline void Table::remove(RowKey row_key)
 {
     bool is_move_last_over = false;
-    erase_row(row_ndx, is_move_last_over); // Throws
+    erase_row(row_key, is_move_last_over); // Throws
 }
 
-inline void Table::move_last_over(size_t row_ndx)
+inline void Table::move_last_over(RowKey row_key)
 {
     bool is_move_last_over = true;
-    erase_row(row_ndx, is_move_last_over); // Throws
+    erase_row(row_key, is_move_last_over); // Throws
 }
 
 inline void Table::remove_last()
 {
     if (!is_empty())
-        remove(size()-1);
+        remove(ndx_to_key((size()-1)));
 }
 
 // A good place to start if you want to understand the memory ordering
@@ -1743,16 +1707,14 @@ inline size_t Table::size() const noexcept
     return m_size;
 }
 
-inline Table::RowExpr Table::get(size_t row_ndx) noexcept
+inline Table::RowExpr Table::get(RowKey row_key) noexcept
 {
-    REALM_ASSERT_3(row_ndx, <, size());
-    return RowExpr(this, row_ndx);
+    return RowExpr(this, row_key);
 }
 
-inline Table::ConstRowExpr Table::get(size_t row_ndx) const noexcept
+inline Table::ConstRowExpr Table::get(RowKey row_key) const noexcept
 {
-    REALM_ASSERT_3(row_ndx, <, size());
-    return ConstRowExpr(this, row_ndx);
+    return ConstRowExpr(this, row_key);
 }
 
 inline Table::RowExpr Table::front() noexcept
@@ -1767,29 +1729,28 @@ inline Table::ConstRowExpr Table::front() const noexcept
 
 inline Table::RowExpr Table::back() noexcept
 {
-    return get(m_size-1);
+    return get(ndx_to_key(m_size-1));
 }
 
 inline Table::ConstRowExpr Table::back() const noexcept
 {
-    return get(m_size-1);
+    return get(ndx_to_key(m_size-1));
 }
 
-inline Table::RowExpr Table::operator[](size_t row_ndx) noexcept
+inline Table::RowExpr Table::operator[](RowKey row_key) noexcept
 {
-    return get(row_ndx);
+    return get(row_key);
 }
 
-inline Table::ConstRowExpr Table::operator[](size_t row_ndx) const noexcept
+inline Table::ConstRowExpr Table::operator[](RowKey row_key) const noexcept
 {
-    return get(row_ndx);
+    return get(row_key);
 }
 
-inline size_t Table::add_empty_row(size_t num_rows)
+inline RowKey Table::add_empty_row(size_t num_rows)
 {
     size_t row_ndx = m_size;
-    insert_empty_row(row_ndx, num_rows); // Throws
-    return row_ndx; // Return index of first new row
+    return insert_empty_row(row_ndx, num_rows); // Throws
 }
 
 inline const Table* Table::get_subtable_ptr(size_t col_ndx, size_t row_ndx) const
@@ -1797,9 +1758,9 @@ inline const Table* Table::get_subtable_ptr(size_t col_ndx, size_t row_ndx) cons
     return const_cast<Table*>(this)->get_subtable_ptr(col_ndx, row_ndx); // Throws
 }
 
-inline bool Table::is_null_link(size_t col_ndx, size_t row_ndx) const noexcept
+inline bool Table::is_null_link(size_t col_ndx, RowKey row_key) const noexcept
 {
-    return get_link(col_ndx, row_ndx) == realm::npos;
+    return get_link(col_ndx, row_key) == realm::npos;
 }
 
 inline ConstTableRef Table::get_link_target(size_t col_ndx) const noexcept
@@ -1808,23 +1769,25 @@ inline ConstTableRef Table::get_link_target(size_t col_ndx) const noexcept
 }
 
 template<class E>
-inline void Table::set_enum(size_t column_ndx, size_t row_ndx, E value)
+inline void Table::set_enum(size_t column_ndx, RowKey row_key, E value)
 {
-    set_int(column_ndx, row_ndx, value);
+    set_int(column_ndx, row_key, value);
 }
 
-inline void Table::nullify_link(size_t col_ndx, size_t row_ndx)
+inline void Table::nullify_link(size_t col_ndx, RowKey row_key)
 {
-    set_link(col_ndx, row_ndx, realm::npos);
+    set_link(col_ndx, row_key, realm::npos);
 }
 
-inline TableRef Table::get_subtable(size_t column_ndx, size_t row_ndx)
+inline TableRef Table::get_subtable(size_t column_ndx, RowKey row_key)
 {
+    size_t row_ndx = key_to_ndx(row_key);
     return TableRef(get_subtable_ptr(column_ndx, row_ndx));
 }
 
-inline ConstTableRef Table::get_subtable(size_t column_ndx, size_t row_ndx) const
+inline ConstTableRef Table::get_subtable(size_t column_ndx, RowKey row_key) const
 {
+    size_t row_ndx = key_to_ndx(row_key);
     return ConstTableRef(get_subtable_ptr(column_ndx, row_ndx));
 }
 
@@ -1900,9 +1863,9 @@ inline size_t* Table::Parent::record_subtable_path(size_t* begin, size_t*) noexc
 }
 
 template<class T>
-typename T::RowAccessor Table::get_link_accessor(size_t column_ndx, size_t row_ndx)
+typename T::RowAccessor Table::get_link_accessor(size_t column_ndx, RowKey row_key)
 {
-    size_t row_pos_in_target = get_link(column_ndx, row_ndx);
+    size_t row_pos_in_target = get_link(column_ndx, row_key);
     TableRef target_table = get_link_target(column_ndx);
 
     Table* table = &*target_table;
@@ -2073,26 +2036,26 @@ public:
         return *table.m_cols[col_ndx];
     }
 
-    static void do_remove(Table& table, size_t row_ndx)
+    static void do_remove(Table& table, RowKey row_key)
     {
         bool broken_reciprocal_backlinks = false;
-        table.do_remove(row_ndx, broken_reciprocal_backlinks); // Throws
+        table.do_remove(row_key, broken_reciprocal_backlinks); // Throws
     }
 
-    static void do_move_last_over(Table& table, size_t row_ndx)
+    static void do_move_last_over(Table& table, RowKey row_key)
     {
         bool broken_reciprocal_backlinks = false;
-        table.do_move_last_over(row_ndx, broken_reciprocal_backlinks); // Throws
+        table.do_move_last_over(row_key, broken_reciprocal_backlinks); // Throws
     }
 
-    static void do_swap_rows(Table& table, size_t row_ndx_1, size_t row_ndx_2)
+    static void do_swap_rows(Table& table, RowKey row_key_1, RowKey row_key_2)
     {
-        table.do_swap_rows(row_ndx_1, row_ndx_2); // Throws
+        table.do_swap_rows(row_key_1, row_key_2); // Throws
     }
 
-    static void do_change_link_targets(Table& table, size_t row_ndx, size_t new_row_ndx)
+    static void do_change_link_targets(Table& table, RowKey row_key, size_t new_row_key)
     {
-        table.do_change_link_targets(row_ndx, new_row_ndx); // Throws
+        table.do_change_link_targets(row_key, new_row_key); // Throws
     }
 
     static void do_clear(Table& table)
@@ -2101,10 +2064,10 @@ public:
         table.do_clear(broken_reciprocal_backlinks); // Throws
     }
 
-    static void do_set_link(Table& table, size_t col_ndx, size_t row_ndx,
-                            size_t target_row_ndx)
+    static void do_set_link(Table& table, size_t col_ndx, RowKey row_key,
+                            RowKey target_row_key)
     {
-        table.do_set_link(col_ndx, row_ndx, target_row_ndx); // Throws
+        table.do_set_link(col_ndx, row_key, target_row_key); // Throws
     }
 
     static size_t get_num_strong_backlinks(const Table& table,
@@ -2195,59 +2158,6 @@ public:
     static Table* get_link_target_table_accessor(Table& table, size_t col_ndx) noexcept
     {
         return table.get_link_target_table_accessor(col_ndx);
-    }
-
-    static void adj_acc_insert_rows(Table& table, size_t row_ndx,
-                                    size_t num_rows) noexcept
-    {
-        table.adj_acc_insert_rows(row_ndx, num_rows);
-    }
-
-    static void adj_acc_erase_row(Table& table, size_t row_ndx) noexcept
-    {
-        table.adj_acc_erase_row(row_ndx);
-    }
-
-    static void adj_acc_swap_rows(Table& table, size_t row_ndx_1, size_t row_ndx_2) noexcept
-    {
-        table.adj_acc_swap_rows(row_ndx_1, row_ndx_2);
-    }
-
-    static void adj_acc_move_over(Table& table, size_t from_row_ndx,
-                                  size_t to_row_ndx) noexcept
-    {
-        table.adj_acc_move_over(from_row_ndx, to_row_ndx);
-    }
-
-    static void adj_acc_clear_root_table(Table& table) noexcept
-    {
-        table.adj_acc_clear_root_table();
-    }
-
-    static void adj_acc_clear_nonroot_table(Table& table) noexcept
-    {
-        table.adj_acc_clear_nonroot_table();
-    }
-
-    static void adj_insert_column(Table& table, size_t col_ndx)
-    {
-        table.adj_insert_column(col_ndx); // Throws
-    }
-
-    static void adj_add_column(Table& table)
-    {
-        size_t num_cols = table.m_cols.size();
-        table.adj_insert_column(num_cols); // Throws
-    }
-
-    static void adj_erase_column(Table& table, size_t col_ndx) noexcept
-    {
-        table.adj_erase_column(col_ndx);
-    }
-
-    static void adj_move_column(Table& table, size_t col_ndx_1, size_t col_ndx_2) noexcept
-    {
-        table.adj_move_column(col_ndx_1, col_ndx_2);
     }
 
     static bool is_marked(const Table& table) noexcept
