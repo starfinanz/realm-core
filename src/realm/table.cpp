@@ -1997,11 +1997,10 @@ ref_type Table::clone(Allocator& alloc) const
 }
 
 
-void Table::insert_empty_row(size_t row_ndx, size_t num_rows)
+RowKey Table::insert_empty_row(RowKey row_key, size_t num_rows)
 {
     REALM_ASSERT(is_attached());
-    REALM_ASSERT_DEBUG(row_ndx <= m_size);
-    REALM_ASSERT_DEBUG(num_rows <= std::numeric_limits<size_t>::max() - row_ndx);
+    REALM_ASSERT(num_rows == 1);
 
     size_t num_cols = m_spec.get_column_count();
     if (REALM_UNLIKELY(num_cols == 0)) {
@@ -2010,7 +2009,24 @@ void Table::insert_empty_row(size_t row_ndx, size_t num_rows)
 
     bump_version();
 
-    for (size_t col_ndx = 0; col_ndx != num_cols; ++col_ndx) {
+    auto& key_col = get_column(0);
+    bool retry;
+    bool generate_key = row_key == 0;
+    do {
+        if (generate_key)
+            row_key = fastrand(std::numeric_limits<uint64_t>::max(), false);
+        retry = false;
+        try {
+            key_col.insert(m_size, row_key);
+        } catch (LogicError& le) {
+            if (!generate_key 
+                || le.kind() != LogicError::unique_constraint_violation)
+                throw;
+            retry = true;
+        }
+    } while (retry);
+    size_t row_ndx = m_size;
+    for (size_t col_ndx = 1; col_ndx != num_cols; ++col_ndx) {
         ColumnBase& col = get_column_base(col_ndx);
         bool insert_nulls = is_nullable(col_ndx);
         col.insert_rows(row_ndx, num_rows, m_size, insert_nulls); // Throws
@@ -2022,12 +2038,14 @@ void Table::insert_empty_row(size_t row_ndx, size_t num_rows)
         size_t prior_num_rows = m_size - num_rows;
         repl->insert_empty_rows(this, row_ndx, num_rows_to_insert, prior_num_rows); // Throws
     }
+    return row_key;
 }
 
 
-void Table::erase_row(size_t row_ndx, bool is_move_last_over)
+void Table::erase_row(RowKey row_key, bool is_move_last_over)
 {
     REALM_ASSERT(is_attached());
+    size_t row_ndx = key_to_ndx(row_key);
     REALM_ASSERT_3(row_ndx, <, m_size);
 
     bool skip_cascade = !m_spec.has_strong_link_columns();
@@ -5159,89 +5177,6 @@ Table* Table::Parent::get_parent_table(size_t*) noexcept
     return 0;
 }
 
-
-void Table::adj_acc_insert_rows(size_t row_ndx, size_t num_rows) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-
-    // Adjust column and subtable accessors after insertion of new rows
-    for (auto& col : m_cols) {
-        if (col != nullptr) {
-            col->adj_acc_insert_rows(row_ndx, num_rows);
-        }
-    }
-}
-
-
-void Table::adj_acc_erase_row(size_t row_ndx) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-
-    // Adjust subtable accessors after removal of a row
-    for (auto& col : m_cols) {
-        if (col != nullptr) {
-            col->adj_acc_erase_row(row_ndx);
-        }
-    }
-}
-
-void Table::adj_acc_swap_rows(size_t row_ndx_1, size_t row_ndx_2) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-
-    // Adjust subtable accessors after row swap
-    for (auto& col : m_cols) {
-        if (col != nullptr) {
-            col->adj_acc_swap_rows(row_ndx_1, row_ndx_2);
-        }
-    }
-}
-
-
-void Table::adj_acc_move_over(size_t from_row_ndx, size_t to_row_ndx) noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConsistencyLevels.
-
-    for (auto& col : m_cols) {
-        if (col != nullptr) {
-            col->adj_acc_move_over(from_row_ndx, to_row_ndx);
-        }
-    }
-}
-
-
-void Table::adj_acc_clear_root_table() noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConcistencyLevels.
-
-    for (auto& col : m_cols) {
-        if (col != nullptr) {
-            col->adj_acc_clear_root_table();
-        }
-    }
-}
-
-
-void Table::adj_acc_clear_nonroot_table() noexcept
-{
-    // This function must assume no more than minimal consistency of the
-    // accessor hierarchy. This means in particular that it cannot access the
-    // underlying node structure. See AccessorConcistencyLevels.
-
-    discard_child_accessors();
-    destroy_column_accessors();
-    m_columns.detach();
-}
 
 
 
