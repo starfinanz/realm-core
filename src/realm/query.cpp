@@ -1183,7 +1183,7 @@ void Query::find_all(TableViewBase& ret, size_t start, size_t end, size_t limit)
         }
         else {
             for (size_t i = start; i < end_pos; ++i)
-                refs.add(i);
+                refs.add(m_table->ndx_to_key(i));
         }
         return;
     }
