@@ -272,6 +272,15 @@ TEST(Table_OptimizeCrash)
     ttt.add(1, "AA");
 }
 
+TEST(Table_KeyedSimple)
+{
+    Table table;
+    size_t col_ndx2 = table.add_column(type_Int, "first");
+    RowKey key = table.add_empty_row();
+    table.set_int(col_ndx2, key, 42);
+    int64_t val = table.get_int(col_ndx2, key);
+    CHECK_EQUAL(42, val);
+}
 
 TEST(Table_1)
 {
