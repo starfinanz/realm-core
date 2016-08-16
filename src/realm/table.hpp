@@ -414,7 +414,7 @@ public:
     DataType    get_mixed_type(size_t column_ndx, RowKey row_key) const noexcept;
     Timestamp   get_timestamp(size_t column_ndx, RowKey row_key) const noexcept;
 
-    template<class T> T get(size_t c, size_t r) const noexcept;
+    template<class T> T get(size_t c, RowKey r) const noexcept;
 
     size_t get_link(size_t column_ndx, RowKey row_key) const noexcept;
     bool is_null_link(size_t column_ndx, RowKey row_key) const noexcept;
@@ -647,7 +647,7 @@ public:
     uint_fast64_t get_version_counter() const noexcept;
 private:
     template<class T>
-    size_t find_first(size_t column_ndx, T value) const; // called by above methods
+    RowKey find_first(size_t column_ndx, T value) const; // called by above methods
     template<class T>
     TableView find_all(size_t column_ndx, T value);
 public:
@@ -1574,6 +1574,8 @@ inline Table::Table(Allocator& alloc):
     Parent* parent = nullptr;
     size_t ndx_in_parent = 0;
     init(ref, parent, ndx_in_parent);
+    size_t col_ndx = add_column(type_Int, "__Keys");
+    add_search_index(col_ndx);
 }
 
 inline Table::Table(const Table& t, Allocator& alloc):
@@ -1611,6 +1613,8 @@ inline TableRef Table::create(Allocator& alloc)
     Parent* parent = nullptr;
     size_t ndx_in_parent = 0;
     table->init(ref, parent, ndx_in_parent); // Throws
+    size_t col_ndx = table->add_column(type_Int, "__Keys");
+    table->add_search_index(col_ndx);
     return table.release()->get_table_ref();
 }
 

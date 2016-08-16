@@ -389,6 +389,20 @@ void Table::remove_backlink_broken_rows(const CascadeState& cascade_state)
 }
 
 
+size_t Table::key_to_ndx(RowKey key) const
+{
+    const IntegerColumn& col = get_column(0);
+    int64_t k = key;
+    size_t ndx = col.get_search_index()->find_first(k);
+    return ndx;
+}
+
+RowKey Table::ndx_to_key(size_t ndx) const
+{
+    const IntegerColumn& col = get_column(0);
+    return col.get(ndx);
+}
+
 void Table::insert_column(size_t col_ndx, DataType type, StringData name, bool nullable, DescriptorRef* subdesc)
 {
     REALM_ASSERT(!has_shared_type());
@@ -2032,7 +2046,7 @@ RowKey Table::insert_empty_row(RowKey row_key, size_t num_rows)
     bool generate_key = row_key == 0;
     do {
         if (generate_key)
-            row_key = fastrand(std::numeric_limits<uint64_t>::max(), false);
+            row_key = fastrand(std::numeric_limits<int64_t>::max(), false);
         retry = false;
         try {
             key_col.insert(m_size, row_key);
@@ -2374,10 +2388,11 @@ void Table::swap_rows(size_t row_ndx_1, size_t row_ndx_2)
 }
 
 
-void Table::set_subtable(size_t col_ndx, size_t row_ndx, const Table* table)
+void Table::set_subtable(size_t col_ndx, RowKey key, const Table* table)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), ==, col_type_Table);
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     bump_version();
 
@@ -2390,10 +2405,11 @@ void Table::set_subtable(size_t col_ndx, size_t row_ndx, const Table* table)
 }
 
 
-void Table::set_mixed_subtable(size_t col_ndx, size_t row_ndx, const Table* t)
+void Table::set_mixed_subtable(size_t col_ndx, RowKey key, const Table* t)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), ==, col_type_Mixed);
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     bump_version();
 
@@ -2578,10 +2594,11 @@ size_t Table::get_index_in_group() const noexcept
 namespace realm {
 
 template<>
-bool Table::get(size_t col_ndx, size_t ndx) const noexcept
+bool Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_Bool);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     if (is_nullable(col_ndx)) {
@@ -2595,10 +2612,11 @@ bool Table::get(size_t col_ndx, size_t ndx) const noexcept
 }
 
 template<>
-int64_t Table::get(size_t col_ndx, size_t ndx) const noexcept
+int64_t Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_Int);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     if (is_nullable(col_ndx)) {
@@ -2612,10 +2630,11 @@ int64_t Table::get(size_t col_ndx, size_t ndx) const noexcept
 }
 
 template<>
-OldDateTime Table::get(size_t col_ndx, size_t ndx) const noexcept
+OldDateTime Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_OldDateTime);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     if (is_nullable(col_ndx)) {
@@ -2629,10 +2648,11 @@ OldDateTime Table::get(size_t col_ndx, size_t ndx) const noexcept
 }
 
 template<>
-float Table::get(size_t col_ndx, size_t ndx) const noexcept
+float Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_Float);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     const FloatColumn& col = get_column<FloatColumn, col_type_Float>(col_ndx);
@@ -2644,10 +2664,11 @@ float Table::get(size_t col_ndx, size_t ndx) const noexcept
 }
 
 template<>
-double Table::get(size_t col_ndx, size_t ndx) const noexcept
+double Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_Double);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     const DoubleColumn& col = get_column<DoubleColumn, col_type_Double>(col_ndx);
@@ -2659,11 +2680,12 @@ double Table::get(size_t col_ndx, size_t ndx) const noexcept
 }
 
 template<>
-StringData Table::get(size_t col_ndx, size_t ndx) const noexcept
+StringData Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, m_columns.size());
     REALM_ASSERT_7(get_real_column_type(col_ndx), == , col_type_String, || ,
         get_real_column_type(col_ndx), == , col_type_StringEnum);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     StringData sd;
@@ -2682,10 +2704,11 @@ StringData Table::get(size_t col_ndx, size_t ndx) const noexcept
 }
 
 template<>
-BinaryData Table::get(size_t col_ndx, size_t ndx) const noexcept
+BinaryData Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, m_columns.size());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_Binary);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     const BinaryColumn& col = get_column<BinaryColumn, col_type_Binary>(col_ndx);
@@ -2693,10 +2716,11 @@ BinaryData Table::get(size_t col_ndx, size_t ndx) const noexcept
 }
 
 template<>
-Timestamp Table::get(size_t col_ndx, size_t ndx) const noexcept
+Timestamp Table::get(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, m_columns.size());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_Timestamp);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     const TimestampColumn& col = get_column<TimestampColumn, col_type_Timestamp>(col_ndx);
@@ -2752,14 +2776,15 @@ size_t Table::do_set_unique(ColType& col, size_t ndx, T&& value)
     return ndx;
 }
 
-int64_t Table::get_int(size_t col_ndx, size_t ndx) const noexcept
+int64_t Table::get_int(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<int64_t>(col_ndx, ndx);
+    return get<int64_t>(col_ndx, key);
 }
 
-void Table::set_int_unique(size_t col_ndx, size_t ndx, int_fast64_t value)
+void Table::set_int_unique(size_t col_ndx, RowKey key, int_fast64_t value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -2780,9 +2805,10 @@ void Table::set_int_unique(size_t col_ndx, size_t ndx, int_fast64_t value)
         repl->set_int_unique(this, col_ndx, ndx, value); // Throws
 }
 
-void Table::set_int(size_t col_ndx, size_t ndx, int_fast64_t value)
+void Table::set_int(size_t col_ndx, RowKey key, int_fast64_t value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -2799,16 +2825,17 @@ void Table::set_int(size_t col_ndx, size_t ndx, int_fast64_t value)
         repl->set_int(this, col_ndx, ndx, value); // Throws
 }
 
-Timestamp Table::get_timestamp(size_t col_ndx, size_t ndx) const noexcept
+Timestamp Table::get_timestamp(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<Timestamp>(col_ndx, ndx);
+    return get<Timestamp>(col_ndx, key);
 }
 
 
-void Table::set_timestamp(size_t col_ndx, size_t ndx, Timestamp value)
+void Table::set_timestamp(size_t col_ndx, RowKey key, Timestamp value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), == , col_type_Timestamp);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -2827,16 +2854,17 @@ void Table::set_timestamp(size_t col_ndx, size_t ndx, Timestamp value)
 }
 
 
-bool Table::get_bool(size_t col_ndx, size_t ndx) const noexcept
+bool Table::get_bool(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<bool>(col_ndx, ndx);
+    return get<bool>(col_ndx, key);
 }
 
 
-void Table::set_bool(size_t col_ndx, size_t ndx, bool value)
+void Table::set_bool(size_t col_ndx, RowKey key, bool value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), ==, col_type_Bool);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -2854,16 +2882,17 @@ void Table::set_bool(size_t col_ndx, size_t ndx, bool value)
 }
 
 
-OldDateTime Table::get_olddatetime(size_t col_ndx, size_t ndx) const noexcept
+OldDateTime Table::get_olddatetime(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<OldDateTime>(col_ndx, ndx);
+    return get<OldDateTime>(col_ndx, key);
 }
 
 
-void Table::set_olddatetime(size_t col_ndx, size_t ndx, OldDateTime value)
+void Table::set_olddatetime(size_t col_ndx, RowKey key, OldDateTime value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
     REALM_ASSERT_3(get_real_column_type(col_ndx), ==, col_type_OldDateTime);
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -2881,15 +2910,16 @@ void Table::set_olddatetime(size_t col_ndx, size_t ndx, OldDateTime value)
 }
 
 
-float Table::get_float(size_t col_ndx, size_t ndx) const noexcept
+float Table::get_float(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<float>(col_ndx, ndx);
+    return get<float>(col_ndx, key);
 }
 
 
-void Table::set_float(size_t col_ndx, size_t ndx, float value)
+void Table::set_float(size_t col_ndx, RowKey key, float value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -2901,15 +2931,16 @@ void Table::set_float(size_t col_ndx, size_t ndx, float value)
 }
 
 
-double Table::get_double(size_t col_ndx, size_t ndx) const noexcept
+double Table::get_double(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<double>(col_ndx, ndx);
+    return get<double>(col_ndx, key);
 }
 
 
-void Table::set_double(size_t col_ndx, size_t ndx, double value)
+void Table::set_double(size_t col_ndx, RowKey key, double value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -2921,16 +2952,17 @@ void Table::set_double(size_t col_ndx, size_t ndx, double value)
 }
 
 
-StringData Table::get_string(size_t col_ndx, size_t ndx) const noexcept
+StringData Table::get_string(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<StringData>(col_ndx, ndx);
+    return get<StringData>(col_ndx, key);
 }
 
 
-void Table::set_string(size_t col_ndx, size_t ndx, StringData value)
+void Table::set_string(size_t col_ndx, RowKey key, StringData value)
 {
     if (REALM_UNLIKELY(!is_attached()))
         throw LogicError(LogicError::detached_accessor);
+    size_t ndx = key_to_ndx(key);
     if (REALM_UNLIKELY(ndx >= m_size))
         throw LogicError(LogicError::row_index_out_of_range);
     // For a degenerate subtable, `m_cols.size()` is zero, even when it has
@@ -2953,12 +2985,13 @@ void Table::set_string(size_t col_ndx, size_t ndx, StringData value)
 }
 
 
-void Table::set_string_unique(size_t col_ndx, size_t ndx, StringData value)
+void Table::set_string_unique(size_t col_ndx, RowKey key, StringData value)
 {
     if (REALM_UNLIKELY(value.size() > max_string_size))
         throw LogicError(LogicError::string_too_big);
     if (REALM_UNLIKELY(!is_attached()))
         throw LogicError(LogicError::detached_accessor);
+    size_t ndx = key_to_ndx(key);
     if (REALM_UNLIKELY(ndx >= m_size))
         throw LogicError(LogicError::row_index_out_of_range);
     // For a degenerate subtable, `m_cols.size()` is zero, even when it has a
@@ -2992,10 +3025,11 @@ void Table::set_string_unique(size_t col_ndx, size_t ndx, StringData value)
         repl->set_string_unique(this, col_ndx, ndx, value); // Throws
 }
 
-void Table::insert_substring(size_t col_ndx, size_t row_ndx, size_t pos, StringData value)
+void Table::insert_substring(size_t col_ndx, RowKey key, size_t pos, StringData value)
 {
     if (REALM_UNLIKELY(!is_attached()))
         throw LogicError(LogicError::detached_accessor);
+    size_t row_ndx = key_to_ndx(key);
     if (REALM_UNLIKELY(row_ndx >= m_size))
         throw LogicError(LogicError::row_index_out_of_range);
     // For a degenerate subtable, `m_cols.size()` is zero, even when it has
@@ -3024,10 +3058,11 @@ void Table::insert_substring(size_t col_ndx, size_t row_ndx, size_t pos, StringD
 }
 
 
-void Table::remove_substring(size_t col_ndx, size_t row_ndx, size_t pos, size_t substring_size)
+void Table::remove_substring(size_t col_ndx, RowKey key, size_t pos, size_t substring_size)
 {
     if (REALM_UNLIKELY(!is_attached()))
         throw LogicError(LogicError::detached_accessor);
+    size_t row_ndx = key_to_ndx(key);
     if (REALM_UNLIKELY(row_ndx >= m_size))
         throw LogicError(LogicError::row_index_out_of_range);
     // For a degenerate subtable, `m_cols.size()` is zero, even when it has
@@ -3056,16 +3091,17 @@ void Table::remove_substring(size_t col_ndx, size_t row_ndx, size_t pos, size_t 
 }
 
 
-BinaryData Table::get_binary(size_t col_ndx, size_t ndx) const noexcept
+BinaryData Table::get_binary(size_t col_ndx, RowKey key) const noexcept
 {
-    return get<BinaryData>(col_ndx, ndx);
+    return get<BinaryData>(col_ndx, key);
 }
 
 
-void Table::set_binary(size_t col_ndx, size_t ndx, BinaryData value)
+void Table::set_binary(size_t col_ndx, RowKey key, BinaryData value)
 {
     if (REALM_UNLIKELY(!is_attached()))
         throw LogicError(LogicError::detached_accessor);
+    size_t ndx = key_to_ndx(key);
     if (REALM_UNLIKELY(ndx >= m_size))
         throw LogicError(LogicError::row_index_out_of_range);
     // For a degenerate subtable, `m_cols.size()` is zero, even when it has
@@ -3090,9 +3126,10 @@ void Table::set_binary(size_t col_ndx, size_t ndx, BinaryData value)
 }
 
 
-Mixed Table::get_mixed(size_t col_ndx, size_t ndx) const noexcept
+Mixed Table::get_mixed(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, m_columns.size());
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     const MixedColumn& col = get_column_mixed(col_ndx);
@@ -3127,9 +3164,10 @@ Mixed Table::get_mixed(size_t col_ndx, size_t ndx) const noexcept
 }
 
 
-DataType Table::get_mixed_type(size_t col_ndx, size_t ndx) const noexcept
+DataType Table::get_mixed_type(size_t col_ndx, RowKey key) const noexcept
 {
     REALM_ASSERT_3(col_ndx, <, m_columns.size());
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
 
     const MixedColumn& col = get_column_mixed(col_ndx);
@@ -3137,9 +3175,10 @@ DataType Table::get_mixed_type(size_t col_ndx, size_t ndx) const noexcept
 }
 
 
-void Table::set_mixed(size_t col_ndx, size_t ndx, Mixed value)
+void Table::set_mixed(size_t col_ndx, RowKey key, Mixed value)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
+    size_t ndx = key_to_ndx(key);
     REALM_ASSERT_3(ndx, <, m_size);
     bump_version();
 
@@ -3190,8 +3229,9 @@ void Table::set_mixed(size_t col_ndx, size_t ndx, Mixed value)
 }
 
 
-size_t Table::get_link(size_t col_ndx, size_t row_ndx) const noexcept
+size_t Table::get_link(size_t col_ndx, RowKey key) const noexcept
 {
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     const LinkColumn& col = get_column_link(col_ndx);
     return col.get_link(row_ndx);
@@ -3261,8 +3301,9 @@ void Table::set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx)
 
 
 // Replication instruction 'set_link' calls this function directly.
-size_t Table::do_set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx)
+size_t Table::do_set_link(size_t col_ndx, RowKey key, size_t target_row_ndx)
 {
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     LinkColumn& col = get_column_link(col_ndx);
     size_t old_target_row_ndx = col.set_link(row_ndx, target_row_ndx);
@@ -3271,16 +3312,18 @@ size_t Table::do_set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx)
 }
 
 
-ConstLinkViewRef Table::get_linklist(size_t col_ndx, size_t row_ndx) const
+ConstLinkViewRef Table::get_linklist(size_t col_ndx, RowKey key) const
 {
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     const LinkListColumn& col = get_column_link_list(col_ndx);
     return col.get(row_ndx);
 }
 
 
-LinkViewRef Table::get_linklist(size_t col_ndx, size_t row_ndx)
+LinkViewRef Table::get_linklist(size_t col_ndx, RowKey key)
 {
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     // FIXME: this looks wrong! It should instead be the modifying operations of
     // LinkView that bump the change count of the containing table.
@@ -3289,32 +3332,35 @@ LinkViewRef Table::get_linklist(size_t col_ndx, size_t row_ndx)
 }
 
 
-bool Table::linklist_is_empty(size_t col_ndx, size_t row_ndx) const noexcept
+bool Table::linklist_is_empty(size_t col_ndx, RowKey key) const noexcept
 {
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     const LinkListColumn& col = get_column_link_list(col_ndx);
     return !col.has_links(row_ndx);
 }
 
 
-size_t Table::get_link_count(size_t col_ndx, size_t row_ndx) const noexcept
+size_t Table::get_link_count(size_t col_ndx, RowKey key) const noexcept
 {
+    size_t row_ndx = key_to_ndx(key);
     REALM_ASSERT_3(row_ndx, <, m_size);
     const LinkListColumn& col = get_column_link_list(col_ndx);
     return col.get_link_count(row_ndx);
 }
 
 
-bool Table::is_null(size_t col_ndx, size_t row_ndx) const noexcept
+bool Table::is_null(size_t col_ndx, RowKey key) const noexcept
 {
     if (!is_nullable(col_ndx))
         return false;
     auto& col = get_column_base(col_ndx);
+    size_t row_ndx = key_to_ndx(key);
     return col.is_null(row_ndx);
 }
 
 
-void Table::set_null(size_t col_ndx, size_t row_ndx)
+void Table::set_null(size_t col_ndx, RowKey key)
 {
     if (!is_nullable(col_ndx)) {
         throw LogicError{LogicError::column_not_nullable};
@@ -3322,6 +3368,7 @@ void Table::set_null(size_t col_ndx, size_t row_ndx)
     REALM_ASSERT(!is_link_type(m_spec.get_column_type(col_ndx))); // Use nullify_link().
 
     bump_version();
+    size_t row_ndx = key_to_ndx(key);
     ColumnBase& col = get_column_base(col_ndx);
     col.set_null(row_ndx);
 
@@ -3615,7 +3662,7 @@ T upgrade_optional_int(T value)
 
 
 template<class T>
-size_t Table::find_first(size_t col_ndx, T value) const
+RowKey Table::find_first(size_t col_ndx, T value) const
 {
     using type_traits = ColumnTypeTraits<T>;
     REALM_ASSERT(!m_columns.is_attached() || col_ndx < m_columns.size());
@@ -3626,18 +3673,18 @@ size_t Table::find_first(size_t col_ndx, T value) const
 
     typedef typename type_traits::column_type ColType;
     const ColType& column_type = get_column<ColType, type_traits::column_id>(col_ndx);
-    return column_type.find_first(upgrade_optional_int(value));
+    return ndx_to_key(column_type.find_first(upgrade_optional_int(value)));
 }
 
-size_t Table::find_first_link(size_t target_row_index) const
+RowKey Table::find_first_link(RowKey target_key) const
 {
-    auto target_row = get_link_target(m_link_chain[0])->get(target_row_index);
-    size_t ret = where().links_to(m_link_chain[0], target_row).find();
+    auto target_row = get_link_target(m_link_chain[0])->get(target_key);
+    RowKey ret = where().links_to(m_link_chain[0], target_row).find();
     m_link_chain.clear();
     return ret;
 }
 
-size_t Table::find_first_int(size_t col_ndx, int64_t value) const
+RowKey Table::find_first_int(size_t col_ndx, int64_t value) const
 {
     if (is_nullable(col_ndx))
         return find_first<util::Optional<int64_t>>(col_ndx, value);
@@ -3645,7 +3692,7 @@ size_t Table::find_first_int(size_t col_ndx, int64_t value) const
         return find_first<int64_t>(col_ndx, value);
 }
 
-size_t Table::find_first_bool(size_t col_ndx, bool value) const
+RowKey Table::find_first_bool(size_t col_ndx, bool value) const
 {
     if (is_nullable(col_ndx))
         return find_first<util::Optional<bool>>(col_ndx, value);
@@ -3653,7 +3700,7 @@ size_t Table::find_first_bool(size_t col_ndx, bool value) const
         return find_first<bool>(col_ndx, value);
 }
 
-size_t Table::find_first_olddatetime(size_t col_ndx, OldDateTime value) const
+RowKey Table::find_first_olddatetime(size_t col_ndx, OldDateTime value) const
 {
     if (is_nullable(col_ndx))
         return find_first<util::Optional<OldDateTime>>(col_ndx, value);
@@ -3661,7 +3708,7 @@ size_t Table::find_first_olddatetime(size_t col_ndx, OldDateTime value) const
         return find_first<OldDateTime>(col_ndx, value);
 }
 
-size_t Table::find_first_timestamp(size_t col_ndx, Timestamp value) const
+RowKey Table::find_first_timestamp(size_t col_ndx, Timestamp value) const
 {
     REALM_ASSERT(!m_columns.is_attached() || col_ndx < m_columns.size());
     REALM_ASSERT_3(get_real_column_type(col_ndx), ==, col_type_Timestamp);
@@ -3673,17 +3720,17 @@ size_t Table::find_first_timestamp(size_t col_ndx, Timestamp value) const
     return col.find<realm::Equal>(value, 0, col.size());
 }
 
-size_t Table::find_first_float(size_t col_ndx, float value) const
+RowKey Table::find_first_float(size_t col_ndx, float value) const
 {
     return find_first<Float>(col_ndx, value);
 }
 
-size_t Table::find_first_double(size_t col_ndx, double value) const
+RowKey Table::find_first_double(size_t col_ndx, double value) const
 {
     return find_first<Double>(col_ndx, value);
 }
 
-size_t Table::find_first_string(size_t col_ndx, StringData value) const
+RowKey Table::find_first_string(size_t col_ndx, StringData value) const
 {
     REALM_ASSERT(!m_columns.is_attached() || col_ndx < m_columns.size());
     if (!m_columns.is_attached())
@@ -3699,12 +3746,12 @@ size_t Table::find_first_string(size_t col_ndx, StringData value) const
     return col.find_first(value);
 }
 
-size_t Table::find_first_binary(size_t col_ndx, BinaryData value) const
+RowKey Table::find_first_binary(size_t col_ndx, BinaryData value) const
 {
     return find_first<BinaryData>(col_ndx, value);
 }
 
-size_t Table::find_first_null(size_t column_ndx) const
+RowKey Table::find_first_null(size_t column_ndx) const
 {
     return where().equal(column_ndx, null{}).find();
 }
