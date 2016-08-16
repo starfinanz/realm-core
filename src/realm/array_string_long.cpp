@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <realm/array_string_long.hpp>
 #include <realm/array_blob.hpp>
 #include <realm/impl/destroy_guard.hpp>
@@ -227,7 +245,7 @@ MemRef ArrayStringLong::create_array(size_t size, Allocator& alloc, bool nullabl
         int_fast64_t value = 0;
         MemRef mem = ArrayInteger::create_array(type_Normal, context_flag, size, value, alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int64_t v(mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+        int64_t v(from_ref(mem.get_ref())); 
         top.add(v); // Throws
         dg_2.release();
     }
@@ -235,7 +253,7 @@ MemRef ArrayStringLong::create_array(size_t size, Allocator& alloc, bool nullabl
         size_t blobs_size = 0;
         MemRef mem = ArrayBlob::create_array(blobs_size, alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int64_t v(mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+        int64_t v(from_ref(mem.get_ref()));
         top.add(v); // Throws
         dg_2.release();
     }
@@ -245,7 +263,7 @@ MemRef ArrayStringLong::create_array(size_t size, Allocator& alloc, bool nullabl
         int64_t value = 0; // initialize all rows to realm::null()
         MemRef mem = ArrayInteger::create_array(type_Normal, context_flag, size, value, alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int64_t v(mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+        int64_t v(from_ref(mem.get_ref()));
         top.add(v); // Throws
         dg_2.release();
     }

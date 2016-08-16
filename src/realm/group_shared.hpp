@@ -1,22 +1,21 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
+
 #ifndef REALM_GROUP_SHARED_HPP
 #define REALM_GROUP_SHARED_HPP
 
@@ -36,6 +35,7 @@
 #include <realm/handover_defs.hpp>
 #include <realm/impl/transact_log.hpp>
 #include <realm/replication.hpp>
+#include <realm/version_id.hpp>
 
 namespace realm {
 
@@ -280,25 +280,7 @@ public:
     // Transactions:
 
     using version_type = _impl::History::version_type;
-
-    struct VersionID {
-        version_type version = std::numeric_limits<version_type>::max();
-        uint_fast32_t index   = 0;
-
-        VersionID() {}
-        VersionID(version_type initial_version, uint_fast32_t initial_index)
-        {
-            version = initial_version;
-            index = initial_index;
-        }
-
-        bool operator==(const VersionID& other) { return version == other.version; }
-        bool operator!=(const VersionID& other) { return version != other.version; }
-        bool operator<(const VersionID& other) { return version < other.version; }
-        bool operator<=(const VersionID& other) { return version <= other.version; }
-        bool operator>(const VersionID& other) { return version > other.version; }
-        bool operator>=(const VersionID& other) { return version >= other.version; }
-    };
+    using VersionID = realm::VersionID;
 
     /// Thrown by begin_read() if the specified version does not correspond to a
     /// bound (or tethered) snapshot.
@@ -550,12 +532,16 @@ private:
     const char* m_key;
     TransactStage m_transact_stage;
     util::InterprocessMutex m_writemutex;
+#ifdef REALM_ASYNC_DAEMON
     util::InterprocessMutex m_balancemutex;
+#endif
     util::InterprocessMutex m_controlmutex;
 #ifndef _WIN32
+#ifdef REALM_ASYNC_DAEMON
     util::InterprocessCondVar m_room_to_write;
     util::InterprocessCondVar m_work_to_do;
     util::InterprocessCondVar m_daemon_becomes_ready;
+#endif
     util::InterprocessCondVar m_new_commit_available;
 #endif
     std::function<void(int,int)> m_upgrade_callback;

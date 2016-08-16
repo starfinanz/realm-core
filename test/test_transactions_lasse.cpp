@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include "testsettings.hpp"
 #ifdef TEST_TRANSACTIONS_LASSE
 
@@ -315,7 +333,7 @@ TEST_IF(Transactions_Stress3, TEST_DURATION >= 3)
     auto read_thread = [&] {
         Random random(random_int<unsigned long>()); // Seed from slow global generator
         SharedGroup sg(path);
-        while (!terminate) { // FIXME: Oops - this 'read' participates in a data race - http://stackoverflow.com/questions/12878344/volatile-in-c11
+        while (!terminate) {
             ReadTransaction rt(sg);
             if(rt.get_table("table")->size() > 0) {
                 int64_t r1 = rt.get_table("table")->get_int(0,0);
@@ -403,7 +421,7 @@ TEST_IF(Transactions_Stress4, TEST_DURATION >= 3)
     auto read_thread = [&] {
         Random random(random_int<unsigned long>()); // Seed from slow global generator
         SharedGroup sg(path);
-        while (!terminate) { // FIXME: Oops - this 'read' participates in a data race - http://stackoverflow.com/questions/12878344/volatile-in-c11
+        while (!terminate) {
             ReadTransaction rt(sg);
             int64_t r1 = rt.get_table("table")->get_int(0, 0);
             rand_sleep(random);
@@ -442,7 +460,7 @@ TEST_IF(Transactions_Stress4, TEST_DURATION >= 3)
         CHECK(!writer_has_thrown);
     }
 
-    terminate = true; // FIXME: Oops - this 'write' participates in a data race - http://stackoverflow.com/questions/12878344/volatile-in-c11
+    terminate = true;
     for (int i = 0; i < READERS; ++i) {
         bool reader_has_thrown = read_threads[i].join();
         CHECK(!reader_has_thrown);

@@ -1,20 +1,18 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
 
@@ -373,7 +371,7 @@ void BacklinkColumn::cascade_break_backlinks_to(size_t row_ndx, CascadeState& st
     if (state.track_link_nullifications) {
         bool do_destroy = false;
         for_each_link(row_ndx, do_destroy, [&](size_t origin_row_ndx) {
-            state.links.push_back({m_origin_table.get(), m_origin_column_ndx, origin_row_ndx, row_ndx});
+            state.links.push_back({m_origin_table.get(), get_origin_column_index(), origin_row_ndx, row_ndx});
         });
     }
 }
@@ -385,17 +383,16 @@ void BacklinkColumn::cascade_break_backlinks_to_all_rows(size_t num_rows, Cascad
             // IntegerColumn::clear() handles the destruction of subtrees
             bool do_destroy = false;
             for_each_link(row_ndx, do_destroy, [&](size_t origin_row_ndx) {
-                state.links.push_back({m_origin_table.get(), m_origin_column_ndx, origin_row_ndx, row_ndx});
+                state.links.push_back({m_origin_table.get(), get_origin_column_index(), origin_row_ndx, row_ndx});
             });
         }
     }
 }
 
-void BacklinkColumn::refresh_accessor_tree(size_t col_ndx, const Spec& spec)
+int BacklinkColumn::compare_values(size_t, size_t) const noexcept
 {
-    IntegerColumn::refresh_accessor_tree(col_ndx, spec); // Throws
-    size_t origin_col_ndx = spec.get_origin_column_ndx(col_ndx);
-    m_origin_column_ndx = origin_col_ndx;
+    REALM_ASSERT(false); // backlinks can only be queried over and not on directly
+    return 0;
 }
 
 #ifdef REALM_DEBUG  // LCOV_EXCL_START ignore debug functions

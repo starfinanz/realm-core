@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <cstdlib>
 #include <cstring>
 #include <cstdio> // debug
@@ -50,7 +68,8 @@ void copy_leaf(const ArrayStringLong& from, ArrayBigBlobs& to)
 } // anonymous namespace
 
 
-StringColumn::StringColumn(Allocator& alloc, ref_type ref, bool nullable):
+StringColumn::StringColumn(Allocator& alloc, ref_type ref, bool nullable, size_t column_ndx):
+    ColumnBaseSimple(column_ndx),
     m_nullable(nullable)
 {
     char* header = alloc.translate(ref);
@@ -162,9 +181,13 @@ StringData StringColumn::get(size_t ndx) const noexcept
 
 bool StringColumn::is_null(size_t ndx) const noexcept
 {
+#ifdef REALM_DEBUG
     StringData sd = get(ndx);
-    REALM_ASSERT_DEBUG(!(!m_nullable && sd.is_null()));
+    REALM_ASSERT_DEBUG(m_nullable || !sd.is_null());
     return sd.is_null();
+#else
+    return m_nullable && get(ndx).is_null();
+#endif
 }
 
 StringData StringColumn::get_index_data(size_t ndx, StringIndex::StringConversionBuffer&) const noexcept
@@ -1384,6 +1407,7 @@ ref_type StringColumn::write(size_t slice_offset, size_t slice_size,
 
 void StringColumn::refresh_accessor_tree(size_t col_ndx, const Spec& spec)
 {
+    ColumnBaseSimple::refresh_accessor_tree(col_ndx, spec);
     refresh_root_accessor(); // Throws
 
     // Refresh search index

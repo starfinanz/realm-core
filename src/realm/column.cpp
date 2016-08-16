@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <stdint.h> // unint8_t etc
 #include <cstdlib>
 #include <cstring>
@@ -41,6 +59,11 @@ void ColumnBase::move_assign(ColumnBase&) noexcept
     destroy();
 }
 
+void ColumnBase::refresh_accessor_tree(size_t new_col_ndx, const realm::Spec&)
+{
+    m_column_ndx = new_col_ndx;
+}
+
 void ColumnBaseWithIndex::move_assign(ColumnBaseWithIndex& col) noexcept
 {
     ColumnBase::move_assign(col);
@@ -68,6 +91,7 @@ void ColumnBaseWithIndex::update_from_parent(size_t old_baseline) noexcept
 
 void ColumnBaseWithIndex::refresh_accessor_tree(size_t new_col_ndx, const realm::Spec& spec)
 {
+    ColumnBase::refresh_accessor_tree(new_col_ndx, spec);
     if (m_search_index) {
         m_search_index->refresh_accessor_tree(new_col_ndx, spec);
     }
@@ -95,9 +119,10 @@ void ColumnBaseWithIndex::destroy() noexcept
 
 #ifdef REALM_DEBUG
 
-void ColumnBase::verify(const Table&, size_t) const
+void ColumnBase::verify(const Table&, size_t column_ndx) const
 {
     verify();
+    REALM_ASSERT_EX(column_ndx == m_column_ndx, column_ndx, m_column_ndx);
 }
 
 #endif // REALM_DEBUG
@@ -210,24 +235,18 @@ void ColumnBaseSimple::introduce_new_root(ref_type new_sibling_ref, Array::TreeI
     // root is still on the compact form.
     REALM_ASSERT(!compact_form || is_append);
     if (compact_form) {
-        // FIXME: Dangerous cast here (unsigned -> signed)
-        int_fast64_t v = state.m_split_offset; // elems_per_child
+        int_fast64_t v = to_int64(state.m_split_offset); // elems_per_child
         new_root->add(1 + 2*v); // Throws
     }
     else {
         Array new_offsets(alloc);
         new_offsets.create(Array::type_Normal); // Throws
-        // FIXME: Dangerous cast here (unsigned -> signed)
-        new_offsets.add(state.m_split_offset); // Throws
-        // FIXME: Dangerous cast here (unsigned -> signed)
-        new_root->add(new_offsets.get_ref()); // Throws
+        new_offsets.add(to_int64(state.m_split_offset)); // Throws
+        new_root->add(from_ref(new_offsets.get_ref())); // Throws
     }
-    // FIXME: Dangerous cast here (unsigned -> signed)
-    new_root->add(orig_root->get_ref()); // Throws
-    // FIXME: Dangerous cast here (unsigned -> signed)
-    new_root->add(new_sibling_ref); // Throws
-    // FIXME: Dangerous cast here (unsigned -> signed)
-    int_fast64_t v = state.m_split_size; // total_elems_in_tree
+    new_root->add(from_ref(orig_root->get_ref())); // Throws
+    new_root->add(from_ref(new_sibling_ref)); // Throws
+    int_fast64_t v = to_int64(state.m_split_size); // total_elems_in_tree
     new_root->add(1 + 2*v); // Throws
     replace_root_array(std::move(new_root));
 }
@@ -254,14 +273,14 @@ ref_type ColumnBase::build(size_t* rest_size_ptr, size_t fixed_height,
             try {
                 int_fast64_t v = elems_per_child;
                 new_inner_node.add(1 + 2*v); // Throws
-                v = node; // FIXME: Dangerous cast here (unsigned -> signed)
+                v = from_ref(node);
                 new_inner_node.add(v); // Throws
                 node = 0;
                 size_t num_children = 1;
                 while (rest_size > 0 && num_children != REALM_MAX_BPNODE_SIZE) {
                     ref_type child = build(&rest_size, height, alloc, handler); // Throws
                     try {
-                        int_fast64_t w = child; // FIXME: Dangerous cast here (unsigned -> signed)
+                        int_fast64_t w = from_ref(child);
                         new_inner_node.add(w); // Throws
                     }
                     catch (...) {

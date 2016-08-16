@@ -1,20 +1,18 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
 
@@ -111,18 +109,27 @@ void InterprocessCondVar::set_shared_part(SharedPart& shared_part, std::string b
             // Hash collisions are okay here because they just result in doing
             // extra work, as opposed to correctness problems
             std::ostringstream ss;
-            // FIXME: getenv() is not classified as thread safe, but I'm
-            // leaving it as is for now.
-            // FIXME: Let's create our own thread-safe version in util.
+            // FIXME: getenv() is not classified as thread safe
             ss << getenv("TMPDIR");
             ss << "realm_" << std::hash<std::string>()(m_resource_path) << ".cv";
             m_resource_path = ss.str();
             ret = mkfifo(m_resource_path.c_str(), 0600);
             err = errno;
         }
+
         // the fifo already existing isn't an error
         if (ret == -1 && err != EEXIST) {
-            throw std::system_error(err, std::system_category());
+            // Workaround for a mkfifo bug on Blackberry devices:
+            // When the fifo already exists, mkfifo fails with error ENOSYS which is not correct.
+            // In this case, we use stat to check if the path exists and it is a fifo.
+            struct stat stat_buf;
+            if (stat(m_resource_path.c_str(), &stat_buf) == 0) {
+                if ((stat_buf.st_mode & S_IFMT) != S_IFIFO) {
+                    throw std::runtime_error(m_resource_path + " exists and it is not a fifo.");
+                }
+            } else {
+                throw std::system_error(err, std::system_category());
+            }
         }
     }
 

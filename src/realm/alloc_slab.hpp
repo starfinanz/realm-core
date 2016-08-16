@@ -1,22 +1,21 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
+
 #ifndef REALM_ALLOC_SLAB_HPP
 #define REALM_ALLOC_SLAB_HPP
 
@@ -159,7 +158,7 @@ public:
     /// \sa own_buffer()
     ///
     /// \throw InvalidDatabase
-    ref_type attach_buffer(char* data, size_t size);
+    ref_type attach_buffer(const char* data, size_t size);
 
     /// Reads file format from file header. Must be called from within a write
     /// transaction.
@@ -306,7 +305,7 @@ public:
     struct MappedFile;
 
 protected:
-    MemRef do_alloc(size_t size) override;
+    MemRef do_alloc(const size_t size) override;
     MemRef do_realloc(ref_type, const char*, size_t old_size,
                     size_t new_size) override;
     // FIXME: It would be very nice if we could detect an invalid free operation in debug mode
@@ -379,7 +378,7 @@ private:
     std::unique_ptr<std::shared_ptr<const util::File::Map<char>>[]> m_local_mappings;
     size_t m_num_local_mappings = 0;
 
-    char* m_data = nullptr;
+    const char* m_data = nullptr;
     size_t m_initial_chunk_size = 0;
     size_t m_initial_section_size = 0;
     int m_section_shifts = 0;
@@ -414,7 +413,7 @@ private:
 #endif
     struct hash_entry {
         ref_type ref = 0;
-        char* addr = nullptr;
+        const char* addr = nullptr;
         size_t version = 0;
     };
     mutable hash_entry cache[256];

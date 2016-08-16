@@ -1,20 +1,18 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
 
@@ -24,7 +22,8 @@
 namespace realm {
 
 
-TimestampColumn::TimestampColumn(Allocator& alloc, ref_type ref)
+TimestampColumn::TimestampColumn(Allocator& alloc, ref_type ref, size_t col_ndx)
+: ColumnBaseSimple(col_ndx)
 {
     std::unique_ptr<Array> top;
     std::unique_ptr<BpTree<util::Optional<int64_t>>> seconds;
@@ -49,11 +48,6 @@ TimestampColumn::TimestampColumn(Allocator& alloc, ref_type ref)
     m_nanoseconds = std::move(nanoseconds);
 }
 
-
-TimestampColumn::~TimestampColumn() noexcept
-{
-
-}
 
 template<class BT>
 class TimestampColumn::CreateHandler: public ColumnBase::CreateHandler {
@@ -304,6 +298,8 @@ void TimestampColumn::update_from_parent(size_t old_baseline) noexcept
 
 void TimestampColumn::refresh_accessor_tree(size_t new_col_ndx, const Spec& spec)
 {
+    ColumnBaseSimple::refresh_accessor_tree(new_col_ndx, spec);
+
     m_array->init_from_parent();
 
     m_seconds->init_from_parent();
@@ -396,6 +392,11 @@ bool TimestampColumn::compare(const TimestampColumn& c) const noexcept
         }
     }
     return true;
+}
+
+int TimestampColumn::compare_values(size_t row1, size_t row2) const noexcept
+{
+    return ColumnBase::compare_values(this, row1, row2);
 }
 
 Timestamp TimestampColumn::maximum(size_t* result_index) const

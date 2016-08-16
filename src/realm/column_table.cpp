@@ -1,6 +1,28 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <realm/column_table.hpp>
 
 #include <realm/util/miscellaneous.hpp>
+
+#ifdef REALM_DEBUG
+#include <iomanip>
+#endif
 
 using namespace realm;
 using namespace realm::util;
@@ -43,7 +65,6 @@ void SubtableColumnBase::verify(const Table& table, size_t col_ndx) const
     IntegerColumn::verify(table, col_ndx);
 
     REALM_ASSERT(m_table == &table);
-    REALM_ASSERT_3(m_column_ndx, ==, col_ndx);
 }
 
 #endif
@@ -119,7 +140,7 @@ void SubtableColumnBase::child_accessor_destroyed(Table* child) noexcept
 Table* SubtableColumnBase::get_parent_table(size_t* column_ndx_out) noexcept
 {
     if (column_ndx_out)
-        *column_ndx_out = m_column_ndx;
+        *column_ndx_out = get_column_index();
     return m_table;
 }
 
@@ -222,7 +243,9 @@ void SubtableColumnBase::SubtableMap::recursive_mark() noexcept
 
 void SubtableColumnBase::SubtableMap::refresh_accessor_tree(size_t spec_ndx_in_parent)
 {
-    for (const auto& entry : m_entries) {
+    // iterate backwards by index because entries may be removed during iteration
+    for (size_t i = m_entries.size(); i > 0; --i) {
+        const auto& entry = m_entries[i - 1];
         // Must hold a counted reference while refreshing
         TableRef table(entry.m_table);
         typedef _impl::TableFriend tf;

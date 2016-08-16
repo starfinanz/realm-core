@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <realm/impl/destroy_guard.hpp>
 #include <realm/spec.hpp>
 #include <realm/replication.hpp>
@@ -95,7 +113,7 @@ MemRef Spec::create_empty_spec(Allocator& alloc)
         bool context_flag = false;
         MemRef mem = Array::create_empty_array(Array::type_Normal, context_flag, alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int_fast64_t v(mem.get_ref()); // FIXME: Dangerous case: unsigned -> signed
+        int_fast64_t v(from_ref(mem.get_ref()));
         spec_set.add(v); // Throws
         dg_2.release();
     }
@@ -104,7 +122,7 @@ MemRef Spec::create_empty_spec(Allocator& alloc)
         // One name for each column
         MemRef mem = ArrayString::create_array(size, alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int_fast64_t v = mem.get_ref(); // FIXME: Dangerous case: unsigned -> signed
+        int_fast64_t v = from_ref(mem.get_ref());
         spec_set.add(v); // Throws
         dg_2.release();
     }
@@ -113,7 +131,7 @@ MemRef Spec::create_empty_spec(Allocator& alloc)
         bool context_flag = false;
         MemRef mem = Array::create_empty_array(Array::type_Normal, context_flag, alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int_fast64_t v = mem.get_ref(); // FIXME: Dangerous case: unsigned -> signed
+        int_fast64_t v = from_ref(mem.get_ref());
         spec_set.add(v); // Throws
         dg_2.release();
     }
@@ -145,11 +163,11 @@ void Spec::insert_column(size_t column_ndx, ColumnType type, StringData name, Co
                 Array::create_empty_array(Array::type_HasRefs, context_flag, alloc); // Throws
             _impl::DeepArrayRefDestroyGuard dg(subspecs_mem.get_ref(), alloc);
             if (m_top.size() == 3) {
-                int_fast64_t v(subspecs_mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+                int_fast64_t v(from_ref(subspecs_mem.get_ref()));
                 m_top.add(v); // Throws
             }
             else {
-                int_fast64_t v(subspecs_mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+                int_fast64_t v(from_ref(subspecs_mem.get_ref()));
                 m_top.set(3, v); // Throws
             }
             m_subspecs.init_from_ref(subspecs_mem.get_ref());
@@ -162,7 +180,7 @@ void Spec::insert_column(size_t column_ndx, ColumnType type, StringData name, Co
             MemRef subspec_mem = create_empty_spec(alloc); // Throws
             _impl::DeepArrayRefDestroyGuard dg(subspec_mem.get_ref(), alloc);
             size_t subspec_ndx = get_subspec_ndx(column_ndx);
-            int_fast64_t v(subspec_mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+            int_fast64_t v(from_ref(subspec_mem.get_ref()));
             m_subspecs.insert(subspec_ndx, v); // Throws
             dg.release();
         }

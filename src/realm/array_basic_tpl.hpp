@@ -1,22 +1,21 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
+
 #ifndef REALM_ARRAY_BASIC_TPL_HPP
 #define REALM_ARRAY_BASIC_TPL_HPP
 
@@ -34,13 +33,6 @@ inline BasicArray<T>::BasicArray(Allocator& allocator) noexcept:
     Array(allocator)
 {
 }
-
-template<class T>
-inline BasicArray<T>::BasicArray(no_prealloc_tag) noexcept:
-    Array(no_prealloc_tag())
-{
-}
-
 
 template<class T>
 inline MemRef BasicArray<T>::create_array(size_t init_size, Allocator& allocator)
@@ -140,6 +132,7 @@ template<class T>
 inline bool BasicArray<T>::is_null(size_t ndx) const noexcept
 {
     // FIXME: This assumes BasicArray will only ever be instantiated for float-like T.
+    static_assert(realm::is_any<T, float, double>::value, "T can only be float or double");
     auto x = get(ndx);
     return null::is_null_float(x);
 }
@@ -149,10 +142,8 @@ template<class T>
 inline T BasicArray<T>::get(const char* header, size_t ndx) noexcept
 {
     const char* data = get_data_from_header(header);
-    // FIXME: This casting assumes that T can be aliged on an 8-bype
-    // boundary (since data is aligned on an 8-byte boundary.) This
-    // restricts portability. The same problem recurs several times in
-    // the remainder of this file.
+    // This casting assumes that T can be aliged on an 8-bype
+    // boundary (since data is aligned on an 8-byte boundary.) 
     return *(reinterpret_cast<const T*>(data) + ndx);
 }
 
@@ -265,14 +256,12 @@ size_t BasicArray<T>::calc_byte_len(size_t for_size, size_t) const
     // is done by returning the aligned version, and most callers of
     // calc_byte_len() will actually benefit if calc_byte_len() was
     // changed to always return the aligned byte size.
-    return header_size + for_size * sizeof (T); // FIXME: Prone to overflow
+    return header_size + for_size * sizeof (T); 
 }
 
 template<class T>
 size_t BasicArray<T>::calc_item_count(size_t bytes, size_t) const noexcept
 {
-    // FIXME: ??? what about width = 0? return -1?
-
     size_t bytes_without_header = bytes - header_size;
     return bytes_without_header / sizeof (T);
 }

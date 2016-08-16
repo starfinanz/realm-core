@@ -16,35 +16,14 @@
  *
  **************************************************************************/
 
-#ifndef REALM_UTIL_MISC_ERRORS_HPP
-#define REALM_UTIL_MISC_ERRORS_HPP
+#include <realm/util/interprocess_mutex.hpp>
 
-#include <system_error>
+#ifdef REALM_ROBUST_MUTEX_EMULATION
 
+using namespace realm::util;
 
-namespace realm {
-namespace util {
-namespace error {
+std::map<File::UniqueID, std::weak_ptr<InterprocessMutex::LockInfo>> InterprocessMutex::s_info_map;
+Mutex InterprocessMutex::s_mutex;
 
-enum misc_errors {
-    unknown = 1
-};
+#endif
 
-std::error_code make_error_code(misc_errors);
-
-} // namespace error
-} // namespace util
-} // namespace realm
-
-namespace std {
-
-template<>
-class is_error_code_enum<realm::util::error::misc_errors>
-{
-public:
-    static const bool value = true;
-};
-
-} // namespace std
-
-#endif // REALM_UTIL_MISC_ERRORS_HPP

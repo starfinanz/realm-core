@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <iostream>
 #include <sstream>
 
@@ -229,6 +247,56 @@ struct BenchmarkSortInt : BenchmarkWithInts {
         ReadTransaction tr(group);
         ConstTableRef table = tr.get_table("IntOnly");
         ConstTableView view = table->get_sorted_view(0);
+    }
+};
+
+struct BenchmarkDistinctIntFewDupes : BenchmarkWithIntsTable {
+    const char* name() const { return "DistinctIntNoDupes"; }
+
+    void before_all(SharedGroup& group)
+    {
+        BenchmarkWithIntsTable::before_all(group);
+        WriteTransaction tr(group);
+        TableRef t = tr.get_table("IntOnly");
+        t->add_empty_row(BASE_SIZE * 4);
+        Random r;
+        for (size_t i = 0; i < BASE_SIZE * 4; ++i) {
+            t->set_int(0, i, r.draw_int(0, BASE_SIZE * 2));
+        }
+        tr.commit();
+    }
+
+    void operator()(SharedGroup& group)
+    {
+        ReadTransaction tr(group);
+        ConstTableRef table = tr.get_table("IntOnly");
+        ConstTableView view = table->where().find_all();
+        view.distinct(0);
+    }
+};
+
+struct BenchmarkDistinctIntManyDupes : BenchmarkWithIntsTable {
+    const char* name() const { return "DistinctIntManyDupes"; }
+
+    void before_all(SharedGroup& group)
+    {
+        BenchmarkWithIntsTable::before_all(group);
+        WriteTransaction tr(group);
+        TableRef t = tr.get_table("IntOnly");
+        t->add_empty_row(BASE_SIZE * 4);
+        Random r;
+        for (size_t i = 0; i < BASE_SIZE * 4; ++i) {
+            t->set_int(0, i, r.draw_int(0, 10));
+        }
+        tr.commit();
+    }
+
+    void operator()(SharedGroup& group)
+    {
+        ReadTransaction tr(group);
+        ConstTableRef table = tr.get_table("IntOnly");
+        ConstTableView view = table->where().find_all();
+        view.distinct(0);
     }
 };
 
@@ -528,6 +596,8 @@ TEST(benchmark_common_tasks_main)
     BENCH(BenchmarkSize);
     BENCH(BenchmarkSort);
     BENCH(BenchmarkSortInt);
+    BENCH(BenchmarkDistinctIntFewDupes);
+    BENCH(BenchmarkDistinctIntManyDupes);
     BENCH(BenchmarkInsert);
     BENCH(BenchmarkGetString);
     BENCH(BenchmarkSetString);

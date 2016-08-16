@@ -1,7 +1,34 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <cstdlib> // size_t
 #include <string>
 #include <stdint.h>
 #include <atomic>
+#include <fstream>
+
+#ifdef _WIN32
+#define NOMINMAX
+#  include "windows.h"
+#  include "psapi.h"
+#else 
+#include <unistd.h>
+#endif
 
 #include <realm/utilities.hpp>
 #include <realm/unicode.hpp>
@@ -109,18 +136,12 @@ void cpuid_init()
 // allow inlining.
 void* round_up(void* p, size_t align)
 {
-    // FIXME: The C++ standard does not guarantee that a pointer can
-    // be stored in size_t. Use uintptr_t instead. The problem with
-    // uintptr_t, is that is is not part of C++03.
     size_t r = size_t(p) % align == 0 ? 0 : align - size_t(p) % align;
     return static_cast<char *>(p) + r;
 }
 
 void* round_down(void* p, size_t align)
 {
-    // FIXME: The C++ standard does not guarantee that a pointer can
-    // be stored in size_t. Use uintptr_t instead. The problem with
-    // uintptr_t, is that is is not part of C++03.
     size_t r = size_t(p);
     return reinterpret_cast<void *>(r & ~(align - 1));
 }
@@ -211,6 +232,10 @@ int fast_popcount64(int64_t x)
 // A fast, thread safe, mediocre-quality random number generator named Xorshift
 uint64_t fastrand(uint64_t max, bool is_seed)
 {
+    // Mutex only to make Helgrind happy
+    static util::Mutex m;
+    util::LockGuard lg(m);
+
     // All the atomics (except the add) may be eliminated completely by the compiler on x64
     static std::atomic<uint64_t> state(is_seed ? max : 1);
 
@@ -240,6 +265,38 @@ void millisleep(size_t milliseconds)
     nanosleep(&ts, 0);
 #endif
 }
+
+#ifdef REALM_SLAB_ALLOC_TUNE
+void process_mem_usage(double& vm_usage, double& resident_set)
+{
+    vm_usage = 0.0;
+    resident_set = 0.0;
+#ifdef _WIN32
+    HANDLE hProc = GetCurrentProcess();
+    PROCESS_MEMORY_COUNTERS_EX info;
+    info.cb = sizeof(info);
+    BOOL okay = GetProcessMemoryInfo(hProc, (PROCESS_MEMORY_COUNTERS*)&info, info.cb);
+
+    SIZE_T PrivateUsage = info.PrivateUsage;
+    resident_set = PrivateUsage;
+#else
+    // the two fields we want
+    unsigned long vsize;
+    long rss;
+    {
+        std::string ignore;
+        std::ifstream ifs("/proc/self/stat", std::ios_base::in);
+        ifs >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+            >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore >> ignore
+            >> ignore >> ignore >> vsize >> rss;
+    }
+
+    long page_size_kb = sysconf(_SC_PAGE_SIZE); // in case x86-64 is configured to use 2MB pages
+    vm_usage = vsize / 1024.0;
+    resident_set = rss * page_size_kb;
+#endif
+}
+#endif
 
 } // namespace realm
 

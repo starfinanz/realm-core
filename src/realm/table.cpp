@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #define _CRT_SECURE_NO_WARNINGS
 #include <limits>
 #include <stdexcept>
@@ -300,7 +318,7 @@ void Table::connect_opposite_link_columns(size_t link_col_ndx, Table& target_tab
     link_col.set_target_table(target_table);
     link_col.set_backlink_column(backlink_col);
     backlink_col.set_origin_table(*this);
-    backlink_col.set_origin_column(link_col, link_col_ndx);
+    backlink_col.set_origin_column(link_col);
 }
 
 
@@ -1315,30 +1333,30 @@ ColumnBase* Table::create_column_accessor(ColumnType col_type, size_t col_ndx, s
         case col_type_Bool:
         case col_type_OldDateTime:
             if (nullable) {
-                col = new IntNullColumn(alloc, ref); // Throws
+                col = new IntNullColumn(alloc, ref, col_ndx); // Throws
             }
             else {
-                col = new IntegerColumn(alloc, ref); // Throws
+                col = new IntegerColumn(alloc, ref, col_ndx); // Throws
             }
             break;
         case col_type_Float:
-            col = new FloatColumn(alloc, ref); // Throws
+            col = new FloatColumn(alloc, ref, col_ndx); // Throws
             break;
         case col_type_Double:
-            col = new DoubleColumn(alloc, ref); // Throws
+            col = new DoubleColumn(alloc, ref, col_ndx); // Throws
             break;
         case col_type_String:
-            col = new StringColumn(alloc, ref, nullable); // Throws
+            col = new StringColumn(alloc, ref, nullable, col_ndx); // Throws
             break;
         case col_type_Binary:
-            col = new BinaryColumn(alloc, ref, nullable); // Throws
+            col = new BinaryColumn(alloc, ref, nullable, col_ndx); // Throws
             break;
         case col_type_StringEnum: {
             ArrayParent* keys_parent;
             size_t keys_ndx_in_parent;
             ref_type keys_ref =
                 m_spec.get_enumkeys_ref(col_ndx, &keys_parent, &keys_ndx_in_parent);
-            StringEnumColumn* col_2 = new StringEnumColumn(alloc, ref, keys_ref, nullable); // Throws
+            StringEnumColumn* col_2 = new StringEnumColumn(alloc, ref, keys_ref, nullable, col_ndx); // Throws
             col_2->get_keys().set_parent(keys_parent, keys_ndx_in_parent);
             col = col_2;
             break;
@@ -1359,11 +1377,11 @@ ColumnBase* Table::create_column_accessor(ColumnType col_type, size_t col_ndx, s
             break;
         case col_type_BackLink:
             // Origin table will be set by group after entire table has been created
-            col = new BacklinkColumn(alloc, ref); // Throws
+            col = new BacklinkColumn(alloc, ref, col_ndx); // Throws
             break;
         case col_type_Timestamp:
             // Origin table will be set by group after entire table has been created
-            col = new TimestampColumn(alloc, ref); // Throws
+            col = new TimestampColumn(alloc, ref, col_ndx); // Throws
             break;
         case col_type_Reserved4:
             // These have no function yet and are therefore unexpected.
@@ -1892,7 +1910,7 @@ ref_type Table::create_empty_table(Allocator& alloc)
     {
         MemRef mem = Spec::create_empty_spec(alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int_fast64_t v(mem.get_ref()); // FIXME: Dangerous case (unsigned -> signed)
+        int_fast64_t v(from_ref(mem.get_ref()));
         top.add(v); // Throws
         dg_2.release();
     }
@@ -1900,7 +1918,7 @@ ref_type Table::create_empty_table(Allocator& alloc)
         bool context_flag = false;
         MemRef mem = Array::create_empty_array(Array::type_HasRefs, context_flag, alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int_fast64_t v(mem.get_ref()); // FIXME: Dangerous case (unsigned -> signed)
+        int_fast64_t v(from_ref(mem.get_ref()));
         top.add(v); // Throws
         dg_2.release();
     }
@@ -1981,14 +1999,14 @@ ref_type Table::clone(Allocator& alloc) const
     {
         MemRef mem = m_spec.m_top.clone_deep(alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int_fast64_t v(mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+        int_fast64_t v(from_ref(mem.get_ref()));
         new_top.add(v); // Throws
         dg_2.release();
     }
     {
         MemRef mem = m_columns.clone_deep(alloc); // Throws
         dg_2.reset(mem.get_ref());
-        int_fast64_t v(mem.get_ref()); // FIXME: Dangerous cast (unsigned -> signed)
+        int_fast64_t v(from_ref(mem.get_ref()));
         new_top.add(v); // Throws
         dg_2.release();
     }
@@ -3819,16 +3837,16 @@ ConstTableView Table::get_sorted_view(size_t col_ndx, bool ascending) const
     return const_cast<Table*>(this)->get_sorted_view(col_ndx, ascending);
 }
 
-TableView Table::get_sorted_view(std::vector<size_t> col_ndx, std::vector<bool> ascending)
+TableView Table::get_sorted_view(SortDescriptor order)
 {
     TableView tv = where().find_all();
-    tv.sort(col_ndx, ascending);
+    tv.sort(std::move(order));
     return tv;
 }
 
-ConstTableView Table::get_sorted_view(std::vector<size_t> col_ndx, std::vector<bool> ascending) const
+ConstTableView Table::get_sorted_view(SortDescriptor order) const
 {
-    return const_cast<Table*>(this)->get_sorted_view(col_ndx, ascending);
+    return const_cast<Table*>(this)->get_sorted_view(std::move(order));
 }
 
 const Table* Table::get_link_chain_target(const std::vector<size_t>& link_chain) const
@@ -4319,7 +4337,7 @@ void Table::optimize(bool enforce)
             size_t ndx_in_parent = m_spec.get_column_ndx_in_parent(i);
 
             // Replace column
-            StringEnumColumn* e = new StringEnumColumn(alloc, ref, keys_ref, is_nullable(i)); // Throws
+            StringEnumColumn* e = new StringEnumColumn(alloc, ref, keys_ref, is_nullable(i), i); // Throws
             e->set_parent(&m_columns, ndx_in_parent);
             e->get_keys().set_parent(keys_parent, keys_ndx_in_parent);
             m_cols[i] = e;
@@ -4398,7 +4416,7 @@ public:
             size_t table_size = m_table.size();
             for (auto& column : m_table.m_cols) {
                 ref_type ref = column->write(m_offset, m_size, table_size, out); // Throws
-                int_fast64_t ref_2(ref); // FIXME: Dangerous cast (unsigned -> signed)
+                int_fast64_t ref_2(from_ref(ref));
                 column_refs.add(ref_2); // Throws
             }
             bool deep = false; // Shallow
@@ -4412,9 +4430,9 @@ public:
             Array table_top(alloc);
             table_top.create(Array::type_HasRefs); // Throws
             _impl::ShallowArrayDestroyGuard dg(&table_top);
-            int_fast64_t spec_ref_2(spec_ref); // FIXME: Dangerous cast (unsigned -> signed)
+            int_fast64_t spec_ref_2(from_ref(spec_ref));
             table_top.add(spec_ref_2); // Throws
-            int_fast64_t columns_ref_2(columns_ref); // FIXME: Dangerous cast (unsigned -> signed)
+            int_fast64_t columns_ref_2(from_ref(columns_ref));
             table_top.add(columns_ref_2); // Throws
             bool deep = false; // Shallow
             bool only_if_modified = false; // Always
@@ -4425,7 +4443,7 @@ public:
         Array tables(alloc);
         tables.create(Array::type_HasRefs); // Throws
         _impl::ShallowArrayDestroyGuard dg(&tables);
-        int_fast64_t table_top_ref_2(table_top_ref); // FIXME: Dangerous cast (unsigned -> signed)
+        int_fast64_t table_top_ref_2(from_ref(table_top_ref));
         tables.add(table_top_ref_2); // Throws
         bool deep = false; // Shallow
         bool only_if_modified = false; // Always
@@ -5577,9 +5595,12 @@ void Table::print() const
 {
     // Table header
     std::cout << "Table (name = \"" << std::string(get_name()) << "\",  size = " << m_size << ")\n    ";
-    size_t column_count = get_column_count();
+    size_t column_count = m_spec.get_column_count(); // We can print backlinks too.
     for (size_t i = 0; i < column_count; ++i) {
-        StringData name = m_spec.get_column_name(i);
+        std::string name = "backlink";
+        if (i < get_column_count()) {
+            name = m_spec.get_column_name(i);
+        }
         std::cout << std::left << std::setw(10) << std::string(name).substr(0, 10) << " ";
     }
 
@@ -5588,15 +5609,15 @@ void Table::print() const
     for (size_t i = 0; i < column_count; ++i) {
         ColumnType type = get_real_column_type(i);
         switch (type) {
-            case type_Int:
+            case col_type_Int:
                 std::cout << "Int        "; break;
-            case type_Float:
+            case col_type_Float:
                 std::cout << "Float      "; break;
-            case type_Double:
+            case col_type_Double:
                 std::cout << "Double     "; break;
-            case type_Bool:
+            case col_type_Bool:
                 std::cout << "Bool       "; break;
-            case type_String:
+            case col_type_String:
                 std::cout << "String     "; break;
             case col_type_StringEnum:
                 std::cout << "String     "; break;
@@ -5604,9 +5625,35 @@ void Table::print() const
                 size_t target_table_ndx = m_spec.get_opposite_link_table_ndx(i);
                 ConstTableRef target_table = get_parent_group()->get_table(target_table_ndx);
                 const StringData target_name = target_table->get_name();
-                std::cout << "->" << std::setw(8) << std::string(target_name).substr(0, 8) << " ";
+                std::cout << "L->" << std::setw(7) << std::string(target_name).substr(0, 7) << " ";
                 break;
             }
+            case col_type_LinkList: {
+                size_t target_table_ndx = m_spec.get_opposite_link_table_ndx(i);
+                ConstTableRef target_table = get_parent_group()->get_table(target_table_ndx);
+                const StringData target_name = target_table->get_name();
+                std::cout << "LL->" << std::setw(6) << std::string(target_name).substr(0, 6) << " ";
+                break;
+            }
+            case col_type_BackLink: {
+                size_t target_table_ndx = m_spec.get_opposite_link_table_ndx(i);
+                ConstTableRef target_table = get_parent_group()->get_table(target_table_ndx);
+                const StringData target_name = target_table->get_name();
+                std::cout << "BL->" << std::setw(6) << std::string(target_name).substr(0, 6) << " ";
+                break;
+            }
+            case col_type_Binary:
+                std::cout << "Binary     "; break;
+            case col_type_Table:
+                std::cout << "SubTable   "; break;
+            case col_type_Mixed:
+                std::cout << "Mixed      "; break;
+            case col_type_OldDateTime:
+                std::cout << "OldDateTime"; break;
+            case col_type_Timestamp:
+                std::cout << "Timestamp  "; break;
+            case col_type_Reserved4:
+                std::cout << "Reserved4  "; break;
             default:
                 REALM_ASSERT(false);
         }
@@ -5615,33 +5662,37 @@ void Table::print() const
 
     // Columns
     for (size_t i = 0; i < m_size; ++i) {
-        std::cout << std::setw(3) << i;
+        std::cout << std::setw(4) << i;
         for (size_t n = 0; n < column_count; ++n) {
             ColumnType type = get_real_column_type(n);
+            if (is_nullable(n) && is_null(n, i)) {
+                std::cout << std::setw(10) << "null" << " ";
+                continue;
+            }
             switch (type) {
-                case type_Int: {
-                    const IntegerColumn& col = get_column(n);
-                    std::cout << std::setw(10) << col.get(i) << " ";
+                case col_type_Int: {
+                    size_t value = get_int(n, i);
+                    std::cout << std::setw(10) << value << " ";
                     break;
                 }
-                case type_Float: {
-                    const FloatColumn& col = get_column_float(n);
-                    std::cout << std::setw(10) << col.get(i) << " ";
+                case col_type_Float: {
+                    float value = get_float(n, i);
+                    std::cout << std::setw(10) << value << " ";
                     break;
                 }
-                case type_Double: {
-                    const DoubleColumn& col = get_column_double(n);
-                    std::cout << std::setw(10) << col.get(i) << " ";
+                case col_type_Double: {
+                    double value = get_double(n, i);
+                    std::cout << std::setw(10) << value << " ";
                     break;
                 }
-                case type_Bool: {
-                    const IntegerColumn& col = get_column(n);
-                    std::cout << (col.get(i) == 0 ? "     false " : "      true ");
+                case col_type_Bool: {
+                    bool value = get_bool(n, i);
+                    std::cout << std::setw(10) << (value ? "true" : "false") << " ";
                     break;
                 }
-                case type_String: {
-                    const StringColumn& col = get_column_string(n);
-                    std::cout << std::setw(10) << col.get(i) << " ";
+                case col_type_String: {
+                    std::string value = get_string(n, i);
+                    std::cout << std::setw(10) << value << " ";
                     break;
                 }
                 case col_type_StringEnum: {
@@ -5650,10 +5701,41 @@ void Table::print() const
                     break;
                 }
                 case col_type_Link: {
-                    const LinkColumn& col = get_column_link(n);
+                    size_t value = get_link(n, i);
+                    std::cout << std::setw(10) << value << " ";
+                    break;
+                }
+                case col_type_Binary: {
+                    BinaryData value = get_binary(n, i);
+                    std::cout << "size:" << std::setw(5) << value.size() << " ";
+                    break;
+                }
+                case col_type_Table: {
+                    const SubtableColumn& col = get_column_table(n);
                     std::cout << std::setw(10) << col.get(i) << " ";
                     break;
                 }
+                case col_type_Timestamp: {
+                    Timestamp value = get_timestamp(n, i);
+                    std::cout << std::setw(5) << value.get_seconds() << std::setw(5) << value.get_nanoseconds() << " ";
+                    break;
+                }
+                case col_type_LinkList: {
+                    size_t value = get_link_count(n, i);
+                    std::cout << "count:" << std::setw(4) << value << " ";
+                    break;
+                }
+                case col_type_BackLink: {
+                    const BacklinkColumn& col = get_column_backlink(n);
+                    size_t value = col.get_backlink_count(i);
+                    std::cout << "count:" << std::setw(4) << value << " ";
+                    break;
+                }
+
+                    // Not supported
+                case col_type_Mixed:
+                case col_type_OldDateTime:
+                case col_type_Reserved4:
                 default:
                     REALM_ASSERT(false);
             }

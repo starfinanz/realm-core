@@ -1,20 +1,18 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
 
@@ -32,7 +30,7 @@ void LinkView::generate_patch(const ConstLinkViewRef& ref, std::unique_ptr<Hando
     if (bool(ref) && ref->is_attached()) {
         patch.reset(new HandoverPatch);
         Table::generate_patch(ref->m_origin_table, patch->m_table);
-        patch->m_col_num = ref->m_origin_column.m_column_ndx;
+        patch->m_col_num = ref->m_origin_column.get_column_index();
         patch->m_row_ndx = ref->get_origin_row_index();
     }
     else
@@ -284,27 +282,22 @@ void LinkView::do_clear(bool broken_reciprocal_backlinks)
 }
 
 
-void LinkView::sort(size_t column, bool ascending)
+void LinkView::sort(size_t column_index, bool ascending)
 {
-    std::vector<size_t> c;
-    std::vector<bool> a;
-    c.push_back(column);
-    a.push_back(ascending);
-    sort(c, a);
+    sort(SortDescriptor(m_origin_column.get_target_table(), {{column_index}}, {ascending}));
 }
 
 
-void LinkView::sort(std::vector<size_t> columns, std::vector<bool> ascending)
+void LinkView::sort(const SortDescriptor& order)
 {
     if (Replication* repl = get_repl()) {
         // todo, write to the replication log that we're doing a sort
         repl->set_link_list(*this, m_row_indexes); // Throws
     }
-    Sorter predicate(columns, ascending);
-    RowIndexes::sort(predicate);
+    do_sort(order, {});
 }
 
-TableView LinkView::get_sorted_view(std::vector<size_t> column_indexes, std::vector<bool> ascending) const
+TableView LinkView::get_sorted_view(SortDescriptor order) const
 {
     TableView v(m_origin_column.get_target_table()); // sets m_table
     v.m_last_seen_version = m_origin_table->m_version;
@@ -313,18 +306,14 @@ TableView LinkView::get_sorted_view(std::vector<size_t> column_indexes, std::vec
     if (m_row_indexes.is_attached()) {
         for (size_t t = 0; t < m_row_indexes.size(); t++) // todo, simpler way?
             v.m_row_indexes.add(get(t).get_index());
-        v.sort(column_indexes, ascending);
+        v.sort(std::move(order));
     }
     return v;
 }
 
 TableView LinkView::get_sorted_view(size_t column_index, bool ascending) const
 {
-    std::vector<size_t> vec;
-    std::vector<bool> a;
-    vec.push_back(column_index);
-    a.push_back(ascending);
-    TableView v = get_sorted_view(vec, a);
+    TableView v = get_sorted_view(SortDescriptor(m_origin_column.get_target_table(), {{column_index}}, {ascending}));
     return v;
 }
 

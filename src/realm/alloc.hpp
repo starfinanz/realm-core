@@ -1,27 +1,27 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
+
 #ifndef REALM_ALLOC_HPP
 #define REALM_ALLOC_HPP
 
 #include <stdint.h>
 #include <cstddef>
+#include <atomic>
 
 #include <realm/util/features.h>
 #include <realm/util/terminate.hpp>
@@ -38,6 +38,7 @@ using ref_type = size_t;
 
 int_fast64_t from_ref(ref_type) noexcept;
 ref_type to_ref(int_fast64_t) noexcept;
+int64_t to_int64(size_t value) noexcept;
 
 class MemRef {
 public:
@@ -177,7 +178,7 @@ public:
     ///
     ///   1 Initial file format version
     ///
-    ///   2 FIXME: Does anybody remember what happened here?
+    ///   2 Various changes.
     ///
     ///   3 Supporting null on string columns broke the file format in following
     ///     way: Index appends an 'X' character to all strings except the null
@@ -247,7 +248,12 @@ protected:
     // place for now, because every table has a pointer leading here. It would
     // be more obvious to place it in Group, but that would add a runtime overhead,
     // and access is time critical.
-    uint_fast64_t m_table_versioning_counter;
+    //
+    // This means that multiple threads that allocate Realm objects through the 
+    // default allocator will share this variable, which is a logical design flaw 
+    // that can make sync_if_needed() re-run queries even though it is not required.
+    // It must be atomic because it's shared.
+    std::atomic<uint_fast64_t> m_table_versioning_counter;
 
     /// Bump the global version counter. This method should be called when
     /// version bumping is initiated. Then following calls to should_propagate_version()
@@ -299,6 +305,14 @@ inline ref_type to_ref(int_fast64_t v) noexcept
     REALM_ASSERT_DEBUG(v % 8 == 0);
     return ref_type(v);
 }
+
+inline int64_t to_int64(size_t value) noexcept
+{
+//    FIXME: Enable once we get clang warning flags correct
+//    REALM_ASSERT_DEBUG(value <= std::numeric_limits<int64_t>::max());
+    return static_cast<int64_t>(value);
+}
+
 
 inline MemRef::MemRef() noexcept:
     m_addr(nullptr),

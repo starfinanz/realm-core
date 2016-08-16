@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <climits>
 #include <limits>
 #include <algorithm>
@@ -23,11 +41,11 @@
 #endif
 
 #include <realm/util/errno.hpp>
-#include <realm/util/file.hpp>
 #include <realm/util/file_mapper.hpp>
 #include <realm/util/safe_int_ops.hpp>
 #include <realm/util/string_buffer.hpp>
 #include <realm/util/features.h>
+#include <realm/util/file.hpp>
 
 using namespace realm;
 using namespace realm::util;
@@ -71,6 +89,9 @@ size_t get_page_size()
     return static_cast<size_t>(size);
 }
 
+// This variable exists such that page_size() can return the page size without having to make any system calls.
+// It could also have been a static local variable, but Valgrind/Helgrind gives a false error on that.
+size_t cached_page_size = get_page_size();
 
 } // anonymous namespace
 
@@ -173,7 +194,6 @@ std::string make_temp_dir()
 
 size_t page_size()
 {
-    static size_t cached_page_size = get_page_size(); // thread safe in C++11
     return cached_page_size;
 }
 
@@ -432,7 +452,6 @@ void File::write(const char* data, size_t size)
         REALM_ASSERT(!int_cast_has_overflow<size_t>(pos_original));
         size_t pos = size_t(pos_original);
         Map<char> write_map(*this, access_ReadWrite, static_cast<size_t>(pos + size));
-        // FIXME: Expect this to fail due to assert asking for a read first! This FIXME seems to be made by Finn who does not remember it. 
         realm::util::encryption_read_barrier(write_map, pos, size);
         memcpy(write_map.get_addr() + pos, data, size);
         realm::util::encryption_write_barrier(write_map, pos, size);
@@ -1064,6 +1083,39 @@ bool File::is_same_file(const File& f) const
 #endif
 }
 
+File::UniqueID File::get_unique_id() const {
+    REALM_ASSERT_RELEASE(is_attached());
+#ifdef _WIN32 // Windows version
+    throw std::runtime_error("Not yet supported");
+#else // POSIX version
+    struct stat statbuf;
+    if (::fstat(m_fd, &statbuf) == 0) {
+        return {static_cast<uint_fast64_t>(statbuf.st_dev), static_cast<uint_fast64_t>(statbuf.st_ino)};
+    }
+    int err = errno; // Eliminate any risk of clobbering
+    std::string msg = get_errno_msg("fstat() failed: ", err);
+    throw std::runtime_error(msg);
+#endif
+}
+
+bool File::get_unique_id(const std::string& path, File::UniqueID& uid) {
+#ifdef _WIN32 // Windows version
+    throw std::runtime_error("Not yet supported");
+#else // POSIX version
+    struct stat statbuf;
+    if (::stat(path.c_str(), &statbuf) == 0) {
+        uid.device = statbuf.st_dev;
+        uid.inode = statbuf.st_ino;
+        return true;
+    }
+    int err = errno; // Eliminate any risk of clobbering
+    // File doesn't exist
+    if (err == ENOENT ) return false;
+
+    std::string msg = get_errno_msg("fstat() failed: ", err);
+    throw std::runtime_error(msg);
+#endif
+}
 
 bool File::is_removed() const
 {
@@ -1150,7 +1202,7 @@ void File::set_encryption_key(const char* key)
 
 #ifndef _WIN32
 
-DirScanner::DirScanner(const std::string& path)
+DirScanner::DirScanner(const std::string& path, bool allow_missing)
 {
     m_dirp = opendir(path.c_str());
     if (!m_dirp) {
@@ -1160,6 +1212,8 @@ DirScanner::DirScanner(const std::string& path)
             case EACCES:
                 throw File::PermissionDenied(msg, path);
             case ENOENT:
+                if (allow_missing)
+                    return;
                 throw File::NotFound(msg, path);
             default:
                 throw File::AccessError(msg, path);
@@ -1169,12 +1223,17 @@ DirScanner::DirScanner(const std::string& path)
 
 DirScanner::~DirScanner() noexcept
 {
-    int r = closedir(m_dirp);
-    REALM_ASSERT_RELEASE(r == 0);
+    if (m_dirp) {
+        int r = closedir(m_dirp);
+        REALM_ASSERT_RELEASE(r == 0);
+    }
 }
 
 bool DirScanner::next(std::string& name)
 {
+    if (!m_dirp)
+        return false;
+
     const size_t min_dirent_size = offsetof(struct dirent, d_name) + NAME_MAX + 1;
     union {
         struct dirent m_dirent;
@@ -1200,7 +1259,7 @@ bool DirScanner::next(std::string& name)
 
 #else
 
-DirScanner::DirScanner(const std::string&)
+DirScanner::DirScanner(const std::string&, bool)
 {
     throw std::runtime_error("Not yet supported");
 }

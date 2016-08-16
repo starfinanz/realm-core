@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <iomanip>
 #include <ostream>
 
@@ -13,9 +31,9 @@
 using namespace realm;
 using namespace realm::util;
 
-StringEnumColumn::StringEnumColumn(Allocator& alloc, ref_type ref, ref_type keys_ref, bool nullable):
-    IntegerColumn(alloc, ref), // Throws
-    m_keys(alloc, keys_ref, nullable), // Throws
+StringEnumColumn::StringEnumColumn(Allocator& alloc, ref_type ref, ref_type keys_ref, bool nullable, size_t column_ndx):
+    IntegerColumn(alloc, ref, column_ndx), // Throws
+    m_keys(alloc, keys_ref, nullable, column_ndx), // Throws
     m_nullable(nullable)
 {
 }

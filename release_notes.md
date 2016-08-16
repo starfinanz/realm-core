@@ -2,8 +2,6 @@
 
 ### Bugfixes
 
-* Fixing util::MemoryInputStream to support tellg() and seekg().
-
 * Lorem ipsum.
 
 ### Breaking changes
@@ -12,7 +10,6 @@
 
 ### Enhancements
 
-
 * Lorem ipsum.
 
 -----------
@@ -20,6 +17,64 @@
 ### Internals
 
 * Lorem ipsum.
+
+----------------------------------------------
+
+# 1.5.0 Release notes
+
+### Bugfixes
+
+* Fix a race condition that could result in a crash if a `LinkView` was
+  destroyed while another thread was adjusting accessors on a `LinkListColumn`.
+* Fix crashes and general brokenness when constructing a Query, inserting a
+  column into the queried table, and then running the query.
+* Fix crashes and general brokenness when syncing a sorted or distincted
+  TableView after inserting new columns into the source Table.
+
+### Breaking changes
+
+* Added support for sorting and distincting table views through a chain of
+  links. (#1030)
+
+### Enhancements
+
+* Improve performance of sorting on non-nullable columns.
+* Improve overall sort performance.
+
+-----------
+
+### Internals
+
+* Updated the header license to prepare for open sourcing the code.
+
+----------------------------------------------
+
+# 1.4.2 Release notes
+
+### Bugfixes
+
+* Fix a bug with the local mutex for the robust mutex emulation.
+* Reduce the number of file descriptors used in robust mutex emulation,
+  multi instances of InterprocessMutex share the same descriptor. (#1986)
+
+----------------------------------------------
+
+# 1.4.1 Release notes
+
+### Bugfixes
+
+* Fixing util::MemoryInputStream to support tellg() and seekg().
+* Fix truncation of the supplied value when querying for a float or double that
+  is less than a column's value.
+* Workaround for the Blackberry mkfifo bug.
+
+-----------
+
+### Internals
+
+* Removed `realm::util::network` library.
+* Removed event loop library.
+* Reduced the number of open files on Android.
 
 ----------------------------------------------
 

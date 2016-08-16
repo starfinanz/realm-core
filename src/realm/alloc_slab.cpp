@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include <type_traits>
 #include <exception>
 #include <algorithm>
@@ -156,7 +174,7 @@ void SlabAlloc::detach() noexcept
         case attach_UsersBuffer:
             break;
         case attach_OwnedBuffer:
-            ::free(m_data);
+            ::free(const_cast<char*>(m_data));
             break;
         case attach_SharedFile:
         case attach_UnsharedFile:
@@ -209,8 +227,25 @@ SlabAlloc::~SlabAlloc() noexcept
 }
 
 
-MemRef SlabAlloc::do_alloc(size_t size)
+MemRef SlabAlloc::do_alloc(const size_t size)
 {
+#ifdef REALM_SLAB_ALLOC_TUNE
+    static int64_t memstat_requested = 0;
+    static int64_t memstat_slab_size = 0;
+    static int64_t memstat_slabs = 0;
+    static int64_t memstat_rss = 0;
+    static int64_t memstat_rss_ctr = 0;
+
+    {
+        double vm;
+        double res;
+        process_mem_usage(vm, res);
+        memstat_rss += res;
+        memstat_rss_ctr += 1;
+        memstat_requested += size;
+    }
+#endif
+
     REALM_ASSERT_DEBUG(0 < size);
     REALM_ASSERT_DEBUG((size & 0x7) == 0); // only allow sizes that are multiples of 8
     REALM_ASSERT_DEBUG(is_attached());
@@ -262,7 +297,7 @@ MemRef SlabAlloc::do_alloc(size_t size)
 
                 char* addr = translate(ref);
 #if REALM_ENABLE_ALLOC_SET_ZERO
-                std::fill(addr, addr+size, 0);
+                std::fill(addr, addr + size, 0);
 #endif
 #ifdef REALM_SLAB_ALLOC_DEBUG
                 malloc_debug_map[ref] = malloc(1);
@@ -272,25 +307,48 @@ MemRef SlabAlloc::do_alloc(size_t size)
         }
     }
 
-    // Else, allocate new slab
-    size_t new_size = ((size-1) | 255) + 1; // Round up to nearest multiple of 256
+
+    // Allocate new slab. To avoid wasting physical memory, we allocate a page
+    size_t new_size = size > page_size() ? size : page_size();
     ref_type ref;
     if (m_slabs.empty()) {
         ref = m_baseline;
     }
     else {
+        // Find size of memory that has been modified (through copy-on-write) in current write transaction
         ref_type curr_ref_end = to_size_t(m_slabs.back().ref_end);
-        // Make it at least as big as twice the previous slab
-        ref_type prev_ref_end = m_slabs.size() == 1 ? m_baseline :
-            to_size_t(m_slabs[m_slabs.size()-2].ref_end);
-        size_t min_size = 2 * (curr_ref_end - prev_ref_end);
+        size_t copy_on_write = curr_ref_end - m_baseline;
+
+        // Allocate 20% of that (for the first few number of slabs the math below will just result in 1 page each)
+        size_t min_size = 0.2 * copy_on_write;
+
         if (new_size < min_size)
             new_size = min_size;
+
         ref = curr_ref_end;
     }
+
+    // Round upwards to nearest page size
+    new_size = ((new_size - 1) | (page_size() - 1)) + 1;
+
+#ifdef REALM_SLAB_ALLOC_TUNE
+    {
+        const size_t update = 5000000;
+        if ((memstat_slab_size + new_size) / update > memstat_slab_size / update) {
+            std::cerr << "Size of all allocated slabs:    " << (memstat_slab_size + new_size) / 1024 << " KB\n" <<
+                "Sum of size for do_alloc(size): " << memstat_requested / 1024 << " KB\n" <<
+                "Average physical memory usage:  " << memstat_rss / memstat_rss_ctr / 1024 << " KB\n" <<
+                "Page size:                      " << page_size() / 1024 << " KB\n" <<
+                "Number of all allocated slabs:  " << memstat_slabs << "\n\n";
+        }
+        memstat_slab_size += new_size;
+        memstat_slabs += 1;
+    }
+#endif
+
     REALM_ASSERT_DEBUG(0 < new_size);
     std::unique_ptr<char[]> mem(new char[new_size]); // Throws
-    std::fill(mem.get(), mem.get()+new_size, 0);
+    std::fill(mem.get(), mem.get() + new_size, 0);
 
     // Add to list of slabs
     Slab slab;
@@ -314,7 +372,7 @@ MemRef SlabAlloc::do_alloc(size_t size)
 #endif
 
 #if REALM_ENABLE_ALLOC_SET_ZERO
-    std::fill(slab.addr, slab.addr+size, 0);
+    std::fill(slab.addr, slab.addr + size, 0);
 #endif
 #ifdef REALM_SLAB_ALLOC_DEBUG
     malloc_debug_map[ref] = malloc(1);
@@ -438,7 +496,7 @@ char* SlabAlloc::do_translate(ref_type ref) const noexcept
 {
     REALM_ASSERT_DEBUG(is_attached());
 
-    char* addr = nullptr;
+    const char* addr = nullptr;
 
     size_t cache_index = ref ^ ((ref >> 16) >> 16);
     // we shift by 16 two times. On 32-bitters it's undefined to shift by
@@ -447,7 +505,7 @@ char* SlabAlloc::do_translate(ref_type ref) const noexcept
     cache_index = cache_index ^(cache_index >> 16);
     cache_index = (cache_index ^(cache_index >> 8)) & 0xFF;
     if (cache[cache_index].ref == ref && cache[cache_index].version == version)
-        return cache[cache_index].addr;
+        return const_cast<char*>(cache[cache_index].addr);
 
     if (ref < m_baseline) {
 
@@ -494,13 +552,13 @@ char* SlabAlloc::do_translate(ref_type ref) const noexcept
     cache[cache_index].ref = ref;
     cache[cache_index].version = version;
     REALM_ASSERT_DEBUG(addr != nullptr);
-    return addr;
+    return const_cast<char*>(addr);
 }
 
 
 int SlabAlloc::get_committed_file_format_version() const noexcept
 {
-    Header& header = *reinterpret_cast<Header*>(m_data);
+    const Header& header = *reinterpret_cast<const Header*>(m_data);
     int slot_selector = ((header.m_flags & SlabAlloc::flags_SelectBit) != 0 ? 1 : 0);
     int file_format_version = int(header.m_file_format[slot_selector]);
     return file_format_version;
@@ -683,9 +741,9 @@ ref_type SlabAlloc::attach_file(const std::string& path, Config& cfg)
     // anybody concurrently joining the session, so it seems easier to do it at
     // session initialization, even if it means writing the database during open.
     if (cfg.session_initiator && m_file_on_streaming_form) {
-        const Header& header = *reinterpret_cast<Header*>(m_data);
+        const Header& header = *reinterpret_cast<const Header*>(m_data);
         const StreamingFooter& footer =
-            *(reinterpret_cast<StreamingFooter*>(m_data+size) - 1);
+            *(reinterpret_cast<const StreamingFooter*>(m_data+size) - 1);
         // Don't compare file format version fields as they are allowed to differ.
         // Also don't compare reserved fields (todo, is it correct to ignore?)
         static_cast<void>(header);
@@ -778,7 +836,7 @@ ref_type SlabAlloc::attach_file(const std::string& path, Config& cfg)
     return top_ref;
 }
 
-ref_type SlabAlloc::attach_buffer(char* data, size_t size)
+ref_type SlabAlloc::attach_buffer(const char* data, size_t size)
 {
     // ExceptionSafety: If this function throws, it must leave the allocator in
     // the detached state.

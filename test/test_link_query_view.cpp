@@ -1,3 +1,21 @@
+/*************************************************************************
+ *
+ * Copyright 2016 Realm Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ **************************************************************************/
+
 #include "testsettings.hpp"
 #ifdef TEST_LINK_VIEW
 
@@ -1045,19 +1063,14 @@ TEST(LinkList_SortLinkView)
     CHECK_EQUAL(tv.get(2).get_index(), 1);
 
     // Test multi-column sorting
-    std::vector<size_t> v;
-    std::vector<bool> a;
-    a.push_back(true);
-    a.push_back(true);
+    std::vector<std::vector<size_t>> v;
+    std::vector<bool> a = {true, true};
+    std::vector<bool> a_false = {false, false};
 
-    std::vector<bool> a_false;
-    a_false.push_back(false);
-    a_false.push_back(false);
-
-    v.push_back(4);
-    v.push_back(1);
-    lvr->sort(v, a_false);
-    tv = lvr->get_sorted_view(v, a_false);
+    v.push_back({4});
+    v.push_back({1});
+    lvr->sort(SortDescriptor{lvr->get_target_table(), v, a_false});
+    tv = lvr->get_sorted_view(SortDescriptor{lvr->get_target_table(), v, a_false});
     CHECK_EQUAL(lvr->get(0).get_index(), 0);
     CHECK_EQUAL(lvr->get(1).get_index(), 2);
     CHECK_EQUAL(lvr->get(2).get_index(), 1);
@@ -1065,8 +1078,8 @@ TEST(LinkList_SortLinkView)
     CHECK_EQUAL(tv.get(1).get_index(), 2);
     CHECK_EQUAL(tv.get(2).get_index(), 1);
 
-    lvr->sort(v, a);
-    tv = lvr->get_sorted_view(v, a);
+    lvr->sort(SortDescriptor{lvr->get_target_table(), v, a});
+    tv = lvr->get_sorted_view(SortDescriptor{lvr->get_target_table(), v, a});
     CHECK_EQUAL(lvr->get(0).get_index(), 1);
     CHECK_EQUAL(lvr->get(1).get_index(), 2);
     CHECK_EQUAL(lvr->get(2).get_index(), 0);
@@ -1074,11 +1087,11 @@ TEST(LinkList_SortLinkView)
     CHECK_EQUAL(tv.get(1).get_index(), 2);
     CHECK_EQUAL(tv.get(2).get_index(), 0);
 
-    v.push_back(2);
+    v.push_back({2});
     a.push_back(true);
 
-    lvr->sort(v, a);
-    tv = lvr->get_sorted_view(v, a);
+    lvr->sort(SortDescriptor{lvr->get_target_table(), v, a});
+    tv = lvr->get_sorted_view(SortDescriptor{lvr->get_target_table(), v, a});
     CHECK_EQUAL(lvr->get(0).get_index(), 1);
     CHECK_EQUAL(lvr->get(1).get_index(), 2);
     CHECK_EQUAL(lvr->get(2).get_index(), 0);
@@ -1090,7 +1103,6 @@ TEST(LinkList_SortLinkView)
     tv.sync_if_needed();
     CHECK_EQUAL(tv.get(0).get_index(), 0);
     CHECK_EQUAL(tv.get(1).get_index(), 1);
-
 }
 
 
