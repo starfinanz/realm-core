@@ -622,6 +622,9 @@ void TableViewBase::sync_distinct_view(size_t column)
             const ColumnBase& col = m_table->get_column_base(m_distinct_column_source);
             col.get_search_index()->distinct(m_row_indexes);
         }
+        size_t sz = m_row_indexes.size();
+        for (size_t i = 0; i < sz; ++i)
+            m_row_indexes.set(i, m_table->ndx_to_key(m_row_indexes.get(i)));
     }
 }
 

@@ -1199,6 +1199,9 @@ void Query::find_all(TableViewBase& ret, size_t start, size_t end, size_t limit)
         QueryState<int64_t> st;
         st.init(act_FindAll, &ret.m_row_indexes, limit);
         aggregate_internal(act_FindAll, ColumnTypeTraits<int64_t>::id, false, root_node(), &st, start, end, nullptr);
+        size_t sz = ret.m_row_indexes.size();
+        for (size_t i = 0; i < sz; ++i)
+            ret.m_row_indexes.set(i, m_table->ndx_to_key(ret.m_row_indexes.get(i)));
     }
 }
 
