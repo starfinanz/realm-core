@@ -444,6 +444,8 @@ Table* Group::do_insert_table(size_t table_ndx, StringData name, DescSetter desc
     Table* table = do_get_table(table_ndx, nullptr); // Throws
     if (desc_setter)
         (*desc_setter)(*table); // Throws
+    size_t col_ndx = table->add_column(type_Int, "__Keys");
+    table->add_search_index(col_ndx);
     return table;
 }
 
