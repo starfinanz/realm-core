@@ -140,10 +140,10 @@ TEST(Table_Null)
         Group group;
         TableRef table = group.add_table("test");
 
-        table->add_column(type_String, "name", true); // nullable = true
-        table->add_empty_row();
+        size_t col = table->add_column(type_String, "name", true); // nullable = true
+        RowKey r0 = table->add_empty_row();
 
-        CHECK(table->get_string(0, 0).is_null());
+        CHECK(table->get_string(col, r0).is_null());
     }
 
     {
@@ -151,38 +151,38 @@ TEST(Table_Null)
         Group group;
         TableRef table = group.add_table("test");
 
-        table->add_column(type_String, "name");
-        CHECK(!table->is_nullable(0));
+        size_t col = table->add_column(type_String, "name");
+        CHECK(!table->is_nullable(col));
 
-        table->add_empty_row();
-        CHECK(!table->get_string(0, 0).is_null());
+        RowKey r0 = table->add_empty_row();
+        CHECK(!table->get_string(col, r0).is_null());
 
         // Test that inserting null in non-nullable column will throw
-        CHECK_LOGIC_ERROR(table->set_string(0, 0, realm::null()), LogicError::column_not_nullable);
+        CHECK_LOGIC_ERROR(table->set_string(col, r0, realm::null()), LogicError::column_not_nullable);
     }
 
     {
         // Check that add_empty_row() adds null integer as default
         Group group;
         TableRef table = group.add_table("table");
-        table->add_column(type_Int, "name", true /*nullable*/);
-        CHECK(table->is_nullable(0));
-        table->add_empty_row();
-        CHECK(table->is_null(0, 0));
+        size_t col = table->add_column(type_Int, "name", true /*nullable*/);
+        CHECK(table->is_nullable(col));
+        RowKey r0 = table->add_empty_row();
+        CHECK(table->is_null(col, r0));
     }
 
     {
         // Check that add_empty_row() adds 0 integer as default.
         Group group;
         TableRef table = group.add_table("test");
-        table->add_column(type_Int, "name");
-        CHECK(!table->is_nullable(0));
-        table->add_empty_row();
-        CHECK(!table->is_null(0, 0));
-        CHECK_EQUAL(0, table->get_int(0, 0));
+        size_t col = table->add_column(type_Int, "name");
+        CHECK(!table->is_nullable(col));
+        RowKey r0 = table->add_empty_row();
+        CHECK(!table->is_null(col, r0));
+        CHECK_EQUAL(0, table->get_int(col, r0));
 
         // Check that inserting null in non-nullable column will throw
-        CHECK_LOGIC_ERROR(table->set_null(0, 0), LogicError::column_not_nullable);
+        CHECK_LOGIC_ERROR(table->set_null(col, r0), LogicError::column_not_nullable);
     }
 
     {
@@ -190,11 +190,11 @@ TEST(Table_Null)
         Group group;
         TableRef table = group.add_table("test");
 
-        table->add_column(type_Binary, "name", true /*nullable*/);
-        CHECK(table->is_nullable(0));
+        size_t col = table->add_column(type_Binary, "name", true /*nullable*/);
+        CHECK(table->is_nullable(col));
 
-        table->add_empty_row();
-        CHECK(table->get_binary(0, 0).is_null());
+        RowKey r0 = table->add_empty_row();
+        CHECK(table->get_binary(col, r0).is_null());
     }
 
     {
@@ -202,14 +202,14 @@ TEST(Table_Null)
         Group group;
         TableRef table = group.add_table("test");
 
-        table->add_column(type_Binary, "name");
-        CHECK(!table->is_nullable(0));
+        size_t col = table->add_column(type_Binary, "name");
+        CHECK(!table->is_nullable(col));
 
-        table->add_empty_row();
-        CHECK(!table->get_binary(0, 0).is_null());
+        RowKey r0 = table->add_empty_row();
+        CHECK(!table->get_binary(col, r0).is_null());
 
         // Test that inserting null in non-nullable column will throw
-        CHECK_THROW_ANY(table->set_binary(0, 0, BinaryData()));
+        CHECK_THROW_ANY(table->set_binary(col, r0, BinaryData()));
     }
 
     {
@@ -218,10 +218,10 @@ TEST(Table_Null)
         TableRef target = group.add_table("target");
         TableRef table  = group.add_table("table");
 
-        target->add_column(type_Int, "int");
-        table->add_column_link(type_Link, "link", *target);
-        CHECK(table->is_nullable(0));
-        CHECK(!target->is_nullable(0));
+        size_t col0 = target->add_column(type_Int, "int");
+        size_t col1 = table->add_column_link(type_Link, "link", *target);
+        CHECK(table->is_nullable(col1));
+        CHECK(!target->is_nullable(col0));
     }
 
     {
@@ -230,10 +230,10 @@ TEST(Table_Null)
         TableRef target = group.add_table("target");
         TableRef table  = group.add_table("table");
 
-        target->add_column(type_Int, "int");
-        table->add_column_link(type_LinkList, "link", *target);
-        CHECK(!table->is_nullable(0));
-        CHECK(!target->is_nullable(0));
+        size_t col0 = target->add_column(type_Int, "int");
+        size_t col1 = table->add_column_link(type_LinkList, "link", *target);
+        CHECK(!table->is_nullable(col1));
+        CHECK(!target->is_nullable(col0));
     }
 
 }

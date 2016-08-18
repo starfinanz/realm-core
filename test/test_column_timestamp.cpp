@@ -667,18 +667,24 @@ TEST(TimestampColumn_AggregateBug)
 TEST(Table_DistinctTimestamp)
 {
     Table table;
-    table.add_column(type_Timestamp, "first");
-    table.add_empty_row(4);
-    table.set_timestamp(0, 0, Timestamp(0, 0));
-    table.set_timestamp(0, 1, Timestamp(1, 0));
-    table.set_timestamp(0, 2, Timestamp(3, 0));
-    table.set_timestamp(0, 3, Timestamp(3, 0));
+    size_t col = table.add_column(type_Timestamp, "first");
+    RowKey r1 = table.add_empty_row();
+    RowKey r2 = table.add_empty_row();
+    RowKey r3 = table.add_empty_row();
+    RowKey r4 = table.add_empty_row();
+    table.set_timestamp(col, r1, Timestamp(0, 0));
+    table.set_timestamp(col, r2, Timestamp(1, 0));
+    table.set_timestamp(col, r3, Timestamp(3, 0));
+    table.set_timestamp(col, r4, Timestamp(3, 0));
 
-    table.add_search_index(0);
-    CHECK(table.has_search_index(0));
+    table.add_search_index(col);
+    CHECK(table.has_search_index(col));
 
-    TableView view = table.get_distinct_view(0);
+    TableView view = table.get_distinct_view(col);
     CHECK_EQUAL(3, view.size());
+    CHECK_EQUAL(r1, view.get_source_ndx(0));
+    CHECK_EQUAL(r2, view.get_source_ndx(1));
+    CHECK_EQUAL(r3, view.get_source_ndx(2));
 }
 
 
