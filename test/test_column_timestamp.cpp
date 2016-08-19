@@ -668,10 +668,11 @@ TEST(Table_DistinctTimestamp)
 {
     Table table;
     size_t col = table.add_column(type_Timestamp, "first");
-    RowKey r1 = table.add_empty_row();
-    RowKey r2 = table.add_empty_row();
-    RowKey r3 = table.add_empty_row();
-    RowKey r4 = table.add_empty_row();
+    auto rows = table.add_empty_rows(4);
+    RowKey r1 = rows->get(0);
+    RowKey r2 = rows->get(1);
+    RowKey r3 = rows->get(2);
+    RowKey r4 = rows->get(3);
     table.set_timestamp(col, r1, Timestamp(0, 0));
     table.set_timestamp(col, r2, Timestamp(1, 0));
     table.set_timestamp(col, r3, Timestamp(3, 0));

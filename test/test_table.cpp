@@ -243,22 +243,25 @@ TEST(Table_DeleteCrash)
     Group group;
     TableRef table = group.add_table("test");
 
-    table->add_column(type_String, "name");
-    table->add_column(type_Int,    "age");
+    size_t col_name = table->add_column(type_String, "name");
+    size_t col_age = table->add_column(type_Int,    "age");
 
-    table->add_empty_row(3);
-    table->set_string(0, 0, "Alice");
-    table->set_int(1, 0, 27);
+    auto rows = table->add_empty_rows(3);
+    table->set_string(col_name, rows->get(0), "Alice");
+    table->set_int(col_age, rows->get(0), 27);
 
-    table->set_string(0, 1, "Bob");
-    table->set_int(1, 1, 50);
+    table->set_string(col_name, rows->get(1), "Bob");
+    table->set_int(col_age, rows->get(1), 50);
 
-    table->set_string(0, 2, "Peter");
-    table->set_int(1, 2, 44);
+    table->set_string(col_name, rows->get(2), "Peter");
+    table->set_int(col_age, rows->get(2), 44);
 
-    table->remove(0);
+    table->remove(rows->get(0));
+    table->remove(rows->get(1));
+    CHECK_EQUAL(table->get_string(col_name, rows->get(2)), "Peter");
+    CHECK_EQUAL(table->get_int(col_age, rows->get(2)), 44);
 
-    table->remove(1);
+    CHECK_THROW(table->get_int(col_age, rows->get(1)), NoSuchRow);
 }
 
 
