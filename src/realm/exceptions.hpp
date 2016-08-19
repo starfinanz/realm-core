@@ -33,6 +33,12 @@ public:
 };
 
 
+/// Thrown to indicate that a referenced row does not exist
+class NoSuchRow: public std::exception {
+public:
+    const char* what() const noexcept override;
+};
+
 /// Thrown by various functions to indicate that a specified table name is
 /// already in use.
 class TableNameInUse: public std::exception {
@@ -209,6 +215,11 @@ private:
 inline const char* NoSuchTable::what() const noexcept
 {
     return "No such table exists";
+}
+
+inline const char* NoSuchRow::what() const noexcept
+{
+    return "No such row exists";
 }
 
 inline const char* TableNameInUse::what() const noexcept
