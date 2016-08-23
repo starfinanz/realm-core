@@ -51,12 +51,13 @@ LinkViewRef LinkView::create_from_and_consume_patch(std::unique_ptr<HandoverPatc
 }
 
 
-void LinkView::insert(size_t link_ndx, size_t target_row_ndx)
+void LinkView::insert(size_t link_ndx, RowKey target_row_key)
 {
     REALM_ASSERT(is_attached());
     REALM_ASSERT_7(m_row_indexes.is_attached(), ==, true, ||, link_ndx, ==, 0);
     REALM_ASSERT_7(m_row_indexes.is_attached(), ==, false, ||, link_ndx, <=, m_row_indexes.size());
-    REALM_ASSERT_3(target_row_ndx, <, m_origin_column.get_target_table().size());
+    auto target_row_ndx = get_target_table().key_to_ndx(target_row_key);
+    REALM_ASSERT_3(target_row_ndx, <, get_target_table().size());
     typedef _impl::TableFriend tf;
     tf::bump_version(*m_origin_table);
 
@@ -70,29 +71,31 @@ void LinkView::insert(size_t link_ndx, size_t target_row_ndx)
         m_row_indexes.init_from_parent(); // re-attach
     }
 
-    m_row_indexes.insert(link_ndx, target_row_ndx); // Throws
-    m_origin_column.add_backlink(target_row_ndx, origin_row_ndx); // Throws
+    m_row_indexes.insert(link_ndx, target_row_key); // Throws
+    m_origin_column.add_backlink(target_row_key, get_origin_table().ndx_to_key(origin_row_ndx)); // Throws
 
     if (Replication* repl = get_repl())
-        repl->link_list_insert(*this, link_ndx, target_row_ndx); // Throws
+        repl->link_list_insert(*this, link_ndx, target_row_key); // Throws
 }
 
 
-void LinkView::set(size_t link_ndx, size_t target_row_ndx)
+void LinkView::set(size_t link_ndx, RowKey target_row_key)
 {
     REALM_ASSERT(is_attached());
     REALM_ASSERT_7(m_row_indexes.is_attached(), ==, true, &&, link_ndx, <, m_row_indexes.size());
-    REALM_ASSERT_3(target_row_ndx, <, m_origin_column.get_target_table().size());
+    auto target_row_ndx = get_target_table().key_to_ndx(target_row_key);
+    REALM_ASSERT_3(target_row_ndx, <, get_target_table().size());
 
     if (Replication* repl = get_repl())
-        repl->link_list_set(*this, link_ndx, target_row_ndx); // Throws
+        repl->link_list_set(*this, link_ndx, target_row_key); // Throws
 
-    size_t old_target_row_ndx = do_set(link_ndx, target_row_ndx); // Throws
+    auto old_target_row = m_row_indexes.get(link_ndx);
+    size_t old_target_row_ndx = do_set(link_ndx, target_row_key); // Throws
     if (m_origin_column.m_weak_links)
         return;
 
     Table& target_table = m_origin_column.get_target_table();
-    size_t num_remaining = target_table.get_num_strong_backlinks(old_target_row_ndx);
+    size_t num_remaining = target_table.get_num_strong_backlinks(old_target_row);
     if (num_remaining > 0)
         return;
 
@@ -109,16 +112,17 @@ void LinkView::set(size_t link_ndx, size_t target_row_ndx)
 
 
 // Replication instruction 'link-list-set' calls this function directly.
-size_t LinkView::do_set(size_t link_ndx, size_t target_row_ndx)
+size_t LinkView::do_set(size_t link_ndx, RowKey target_row_key)
 {
-    size_t old_target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
+    size_t old_target_row_key = to_size_t(m_row_indexes.get(link_ndx));
     size_t origin_row_ndx = get_origin_row_index();
-    m_origin_column.remove_backlink(old_target_row_ndx, origin_row_ndx); // Throws
-    m_origin_column.add_backlink(target_row_ndx, origin_row_ndx); // Throws
-    m_row_indexes.set(link_ndx, target_row_ndx); // Throws
+    RowKey origin_row_key = get_origin_table().ndx_to_key(origin_row_ndx);
+    m_origin_column.remove_backlink(old_target_row_key, origin_row_key); // Throws
+    m_origin_column.add_backlink(target_row_key, origin_row_key); // Throws
+    m_row_indexes.set(link_ndx, target_row_key); // Throws
     typedef _impl::TableFriend tf;
     tf::bump_version(*m_origin_table);
-    return old_target_row_ndx;
+    return old_target_row_key;
 }
 
 
@@ -137,9 +141,9 @@ void LinkView::move(size_t from_link_ndx, size_t to_link_ndx)
     tf::bump_version(*m_origin_table);
 
     // FIXME: Can get() return -1 now that we have detached entries? Does this move() work with it?
-    size_t target_row_ndx = static_cast<size_t>(m_row_indexes.get(from_link_ndx));
+    size_t target_row_key = static_cast<size_t>(m_row_indexes.get(from_link_ndx));
     m_row_indexes.erase(from_link_ndx);
-    m_row_indexes.insert(to_link_ndx, target_row_ndx);
+    m_row_indexes.insert(to_link_ndx, target_row_key);
 
     if (Replication* repl = get_repl())
         repl->link_list_move(*this, from_link_ndx, to_link_ndx); // Throws
@@ -164,9 +168,9 @@ void LinkView::swap(size_t link_ndx_1, size_t link_ndx_2)
     typedef _impl::TableFriend tf;
     tf::bump_version(*m_origin_table);
 
-    size_t target_row_ndx = to_size_t(m_row_indexes.get(link_ndx_1));
+    RowKey target_row_key = m_row_indexes.get(link_ndx_1);
     m_row_indexes.set(link_ndx_1, m_row_indexes.get(link_ndx_2));
-    m_row_indexes.set(link_ndx_2, target_row_ndx);
+    m_row_indexes.set(link_ndx_2, target_row_key);
 
     if (Replication* repl = get_repl())
         repl->link_list_swap(*this, link_ndx_1, link_ndx_2); // Throws
@@ -181,37 +185,37 @@ void LinkView::remove(size_t link_ndx)
     if (Replication* repl = get_repl())
         repl->link_list_erase(*this, link_ndx); // Throws
 
-    size_t target_row_ndx = do_remove(link_ndx); // Throws
+    size_t target_row_key = do_remove(link_ndx); // Throws
     if (m_origin_column.m_weak_links)
         return;
 
-    Table& target_table = m_origin_column.get_target_table();
-    size_t num_remaining = target_table.get_num_strong_backlinks(target_row_ndx);
+    Table& target_table = get_target_table();
+    size_t num_remaining = target_table.get_num_strong_backlinks(target_row_key);
     if (num_remaining > 0)
         return;
 
     CascadeState::row target_row;
     target_row.table_ndx = target_table.get_index_in_group();
-    target_row.row_ndx   = target_row_ndx;
+    target_row.row_ndx   = target_table.key_to_ndx(target_row_key);
     CascadeState state;
     state.rows.push_back(target_row);
 
     typedef _impl::TableFriend tf;
-    tf::cascade_break_backlinks_to(target_table, target_row_ndx, state); // Throws
+    tf::cascade_break_backlinks_to(target_table, target_row_key, state); // Throws
     tf::remove_backlink_broken_rows(target_table, state); // Throws
 }
 
 
 // Replication instruction 'link-list-erase' calls this function directly.
-size_t LinkView::do_remove(size_t link_ndx)
+RowKey LinkView::do_remove(size_t link_ndx)
 {
-    size_t target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
+    size_t target_row_key = m_row_indexes.get(link_ndx);
     size_t origin_row_ndx = get_origin_row_index();
-    m_origin_column.remove_backlink(target_row_ndx, origin_row_ndx); // Throws
+    m_origin_column.remove_backlink(target_row_key, get_origin_table().ndx_to_key(origin_row_ndx)); // Throws
     m_row_indexes.erase(link_ndx); // Throws
     typedef _impl::TableFriend tf;
     tf::bump_version(*m_origin_table);
-    return target_row_ndx;
+    return target_row_key;
 }
 
 
@@ -232,6 +236,7 @@ void LinkView::clear()
     }
 
     size_t origin_row_ndx = get_origin_row_index();
+    RowKey origin_row_key = get_origin_table().ndx_to_key(origin_row_ndx);
     CascadeState state;
     state.stop_on_link_list_column  = &m_origin_column;
     state.stop_on_link_list_row_ndx = origin_row_ndx;
@@ -239,10 +244,11 @@ void LinkView::clear()
     typedef _impl::TableFriend tf;
     size_t num_links = m_row_indexes.size();
     for (size_t link_ndx = 0; link_ndx < num_links; ++link_ndx) {
-        size_t target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
-        m_origin_column.remove_backlink(target_row_ndx, origin_row_ndx); // Throws
+        RowKey target_row_key = m_row_indexes.get(link_ndx);
+        m_origin_column.remove_backlink(target_row_key, origin_row_key); // Throws
         Table& target_table = m_origin_column.get_target_table();
-        size_t num_remaining = target_table.get_num_strong_backlinks(target_row_ndx);
+        size_t target_row_ndx = target_table.key_to_ndx(target_row_key);
+        size_t num_remaining = target_table.get_num_strong_backlinks(target_row_key);
         if (num_remaining > 0)
             continue;
         CascadeState::row target_row;

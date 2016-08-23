@@ -60,9 +60,9 @@ public:
     Table::RowExpr get(size_t link_ndx) noexcept;
 
     // Modifiers
-    void add(size_t target_row_ndx);
-    void insert(size_t link_ndx, size_t target_row_ndx);
-    void set(size_t link_ndx, size_t target_row_ndx);
+    void add(RowKey target_row_key);
+    void insert(size_t link_ndx, RowKey target_row_key);
+    void set(size_t link_ndx, RowKey target_row_key);
     /// Move the link at \a from_ndx such that it ends up at \a to_ndx. Other
     /// links are shifted as necessary in such a way that their order is
     /// preserved.
@@ -97,7 +97,7 @@ public:
     /// by its index in the target table). If found, the index of the link to
     /// that row within this list is returned, otherwise `realm::not_found` is
     /// returned.
-    size_t find(size_t target_row_ndx, size_t start=0) const noexcept;
+    size_t find(RowKey target_row_key, size_t start=0) const noexcept;
 
     const ColumnBase& get_column_base(size_t index) const override; // FIXME: `ColumnBase` is not part of the public API, so this function must be made private.
     const Table& get_origin_table() const noexcept;
@@ -126,13 +126,13 @@ private:
     void detach();
     void set_origin_row_index(size_t row_ndx) noexcept;
 
-    size_t do_set(size_t link_ndx, size_t target_row_ndx);
+    size_t do_set(size_t link_ndx, RowKey target_row_key);
     size_t do_remove(size_t link_ndx);
     void do_clear(bool broken_reciprocal_backlinks);
 
-    void do_nullify_link(size_t old_target_row_ndx);
-    void do_update_link(size_t old_target_row_ndx, size_t new_target_row_ndx);
-    void do_swap_link(size_t target_row_ndx_1, size_t target_row_ndx_2);
+    void do_nullify_link(RowKey old_target_row_key);
+    void do_update_link(RowKey old_target_row_key, RowKey new_target_row_key);
+    void do_swap_link(RowKey target_row_key_1, RowKey target_row_key_2);
 
     void refresh_accessor_tree(size_t new_row_ndx) noexcept;
 
@@ -256,8 +256,8 @@ inline Table::RowExpr LinkView::get(size_t link_ndx) noexcept
     REALM_ASSERT_3(link_ndx, <, m_row_indexes.size());
 
     Table& target_table = m_origin_column.get_target_table();
-    size_t target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
-    return target_table[target_row_ndx];
+    RowKey target_row_key = m_row_indexes.get(link_ndx);
+    return target_table[target_row_key];
 }
 
 inline Table::ConstRowExpr LinkView::operator[](size_t link_ndx) const noexcept
@@ -270,23 +270,24 @@ inline Table::RowExpr LinkView::operator[](size_t link_ndx) noexcept
     return get(link_ndx);
 }
 
-inline void LinkView::add(size_t target_row_ndx)
+inline void LinkView::add(RowKey target_row_key)
 {
     REALM_ASSERT(is_attached());
     size_t ins_pos = (m_row_indexes.is_attached()) ? m_row_indexes.size() : 0;
-    insert(ins_pos, target_row_ndx);
+    insert(ins_pos, target_row_key);
 }
 
-inline size_t LinkView::find(size_t target_row_ndx, size_t start) const noexcept
+inline size_t LinkView::find(RowKey target_row_key, size_t start) const noexcept
 {
     REALM_ASSERT(is_attached());
-    REALM_ASSERT_3(target_row_ndx, <, m_origin_column.get_target_table().size());
+    auto target_row_ndx = get_target_table().key_to_ndx(target_row_key);
+    REALM_ASSERT_3(target_row_ndx, <, get_target_table().size());
     REALM_ASSERT_3(start, <=, size());
 
     if (!m_row_indexes.is_attached())
         return not_found;
 
-    return m_row_indexes.find_first(target_row_ndx, start);
+    return m_row_indexes.find_first(target_row_key, start);
 }
 
 inline const ColumnBase& LinkView::get_column_base(size_t index) const

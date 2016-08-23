@@ -124,15 +124,15 @@ TEST(LangBindHelper_LinkView)
     Group group;
     TableRef origin = group.add_table("origin");
     TableRef target = group.add_table("target");
-    origin->add_column_link(type_LinkList, "", *target);
+    size_t lcol = origin->add_column_link(type_LinkList, "", *target);
     target->add_column(type_Int, "");
-    origin->add_empty_row();
-    target->add_empty_row();
-    Row row = origin->get(0);
-    const LinkViewRef& link_view = LangBindHelper::get_linklist_ptr(row, 0);
-    link_view->add(0);
+    RowKey r0 = origin->add_empty_row();
+    RowKey r1 = target->add_empty_row();
+    Row row = origin->get(r0);
+    const LinkViewRef& link_view = LangBindHelper::get_linklist_ptr(row, lcol);
+    link_view->add(r1);
     LangBindHelper::unbind_linklist_ptr(link_view);
-    CHECK_EQUAL(1, origin->get_link_count(0,0));
+    CHECK_EQUAL(1, origin->get_link_count(lcol,r0));
 }
 
 
