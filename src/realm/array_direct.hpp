@@ -195,7 +195,7 @@ inline int64_t get_direct(const char* data, size_t width, size_t ndx) noexcept
 template <int width>
 inline std::pair<int64_t, int64_t> get_two(const char* data, size_t ndx) noexcept
 {
-    return std::make_pair(to_size_t(get_direct<width>(data, ndx + 0)), to_size_t(get_direct<width>(data, ndx + 1)));
+    return std::make_pair(get_direct<width>(data, ndx + 0), get_direct<width>(data, ndx + 1));
 }
 
 inline std::pair<int64_t, int64_t> get_two(const char* data, size_t width, size_t ndx) noexcept
