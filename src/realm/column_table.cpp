@@ -300,7 +300,7 @@ void SubtableColumn::add(const Table* subtable)
         columns_ref = clone_table_columns(subtable); // Throws
 
     size_t row_ndx = realm::npos;
-    int_fast64_t value = int_fast64_t(columns_ref);
+    int_fast64_t value = from_ref(columns_ref);
     size_t num_rows = 1;
     do_insert(row_ndx, value, num_rows); // Throws
 }
@@ -315,7 +315,7 @@ void SubtableColumn::insert(size_t row_ndx, const Table* subtable)
     size_t column_size = this->size(); // Slow
     REALM_ASSERT_3(row_ndx, <=, column_size);
     size_t row_ndx_2 = row_ndx == column_size ? realm::npos : row_ndx;
-    int_fast64_t value = int_fast64_t(columns_ref);
+    int_fast64_t value = from_ref(columns_ref);
     size_t num_rows = 1;
     do_insert(row_ndx_2, value, num_rows); // Throws
 }

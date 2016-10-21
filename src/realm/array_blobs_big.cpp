@@ -102,7 +102,7 @@ void ArrayBigBlobs::insert(size_t ndx, BinaryData value, bool add_zero_term)
         new_blob.create();                                                      // Throws
         ref_type ref = new_blob.add(value.data(), value.size(), add_zero_term); // Throws
 
-        Array::insert(ndx, int64_t(ref)); // Throws
+        Array::insert(ndx, from_ref(ref)); // Throws
     }
 }
 

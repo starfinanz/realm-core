@@ -423,7 +423,7 @@ ref_type BpTreeNode::insert_bptree_child(Array& offsets, size_t orig_child_ndx, 
     if (REALM_LIKELY(size() < 1 + REALM_MAX_BPNODE_SIZE + 1)) {
         // Case 1/2: This parent has space for the new child, so it
         // does not have to be split.
-        insert(insert_ndx, new_sibling_ref); // Throws
+        insert(insert_ndx, from_ref(new_sibling_ref)); // Throws
         // +2 because stored value is 1 + 2*total_elems_in_subtree
         adjust(size() - 1, +2); // Throws
         if (offsets.is_attached()) {
@@ -470,7 +470,7 @@ ref_type BpTreeNode::insert_bptree_child(Array& offsets, size_t orig_child_ndx, 
         // the compact form.
         new_split_offset = elem_ndx_offset + state.m_split_offset;
         new_split_size = elem_ndx_offset + state.m_split_size;
-        new_sibling.add(new_sibling_ref); // Throws
+        new_sibling.add(from_ref(new_sibling_ref)); // Throws
     }
     else {
         // Case 2/2: The split child was not the last child of the

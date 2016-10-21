@@ -1311,7 +1311,7 @@ TEST(Array_Copy)
     // With sub-arrays
     Array c(Allocator::get_default());
     c.create(Array::type_HasRefs);
-    c.add(a.get_ref());
+    c.add(from_ref(a.get_ref()));
 
     Array d(Allocator::get_default());
     d.init_from_mem(c.clone_deep(Allocator::get_default()));

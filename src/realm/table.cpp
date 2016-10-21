@@ -1295,7 +1295,7 @@ void Table::create_degen_subtab_columns()
         bool nullable = (m_spec.get_column_attr(i) & col_attr_Nullable) != 0;
         size_t init_size = 0;
         ref_type ref = create_column(type, init_size, nullable, alloc); // Throws
-        m_columns.add(int_fast64_t(ref));                               // Throws
+        m_columns.add(from_ref(ref));                                   // Throws
 
         // So far, only root tables can have search indexes, and this is not a
         // root table.
@@ -2092,7 +2092,7 @@ ref_type Table::clone_columns(Allocator& alloc) const
         const ColumnBase* col = &get_column_base(col_ndx);
         MemRef mem = col->clone_deep(alloc);
         new_col_ref = mem.get_ref();
-        new_columns.add(int_fast64_t(new_col_ref)); // Throws
+        new_columns.add(from_ref(new_col_ref)); // Throws
     }
     return new_columns.get_ref();
 }

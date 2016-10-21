@@ -376,7 +376,7 @@ inline void MixedColumn::insert_subtable(size_t ndx, const Table* t)
         ref = tf::create_empty_table(get_alloc()); // Throws
     }
     int_fast64_t types_value = mixcol_Table;
-    int_fast64_t data_value = int_fast64_t(ref);
+    int_fast64_t data_value = from_ref(ref);
     insert_value(ndx, types_value, data_value); // Throws
 }
 

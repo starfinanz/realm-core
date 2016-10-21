@@ -95,7 +95,7 @@ ref_type ArrayBlob::replace(size_t begin, size_t end, const char* data, size_t d
                 // Copy data
                 ref_type ref = new_blob.add(data, size_to_copy);
                 // Add new node in hosting node
-                Array::add(ref);
+                Array::add(from_ref(ref));
 
                 data_size -= size_to_copy;
                 data += size_to_copy;
@@ -124,7 +124,7 @@ ref_type ArrayBlob::replace(size_t begin, size_t end, const char* data, size_t d
             new_root.create(type_HasRefs, true); // Throws
 
             // Add current node to the new root
-            new_root.add(get_ref());
+            new_root.add(from_ref(get_ref()));
             return reinterpret_cast<ArrayBlob*>(&new_root)->replace(begin, end, data, data_size, add_zero_term);
         }
 
