@@ -911,7 +911,7 @@ inline void Group::init_array_parents() noexcept
 
 inline void Group::update_child_ref(size_t child_ndx, ref_type new_ref)
 {
-    m_tables.set(child_ndx, new_ref);
+    m_tables.set_as_ref(child_ndx, new_ref);
 }
 
 inline ref_type Group::get_child_ref(size_t child_ndx) const noexcept

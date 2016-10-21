@@ -1955,7 +1955,7 @@ inline void Array::update_parent()
 
 inline void Array::update_child_ref(size_t child_ndx, ref_type new_ref)
 {
-    set(child_ndx, from_ref(new_ref));
+    set_as_ref(child_ndx, new_ref);
 }
 
 inline ref_type Array::get_child_ref(size_t child_ndx) const noexcept

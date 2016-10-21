@@ -495,7 +495,7 @@ ref_type BpTreeNode::insert_bptree_child(Array& offsets, size_t orig_child_ndx, 
         }
         // Update original parent
         erase(insert_ndx + 1, child_refs_end);
-        set(insert_ndx, from_ref(new_sibling_ref)); // Throws
+        set_as_ref(insert_ndx, new_sibling_ref); // Throws
         offsets.erase(orig_child_ndx + 1, offsets_end);
         offsets.set(orig_child_ndx, elem_ndx_offset + state.m_split_offset); // Throws
     }

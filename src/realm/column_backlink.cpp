@@ -346,7 +346,7 @@ void BacklinkColumn::clear(size_t num_rows, bool)
 
 void BacklinkColumn::update_child_ref(size_t child_ndx, ref_type new_ref)
 {
-    IntegerColumn::set(child_ndx, new_ref); // Throws
+    IntegerColumn::set_as_ref(child_ndx, new_ref); // Throws
 }
 
 

@@ -391,7 +391,7 @@ LinkViewRef LinkListColumn::get_ptr(size_t row_ndx) const
 
 void LinkListColumn::update_child_ref(size_t child_ndx, ref_type new_ref)
 {
-    LinkColumnBase::set(child_ndx, new_ref);
+    LinkColumnBase::set_as_ref(child_ndx, new_ref);
 }
 
 

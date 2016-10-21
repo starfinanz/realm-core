@@ -330,8 +330,7 @@ void SubtableColumn::set(size_t row_ndx, const Table* subtable)
     if (subtable && !subtable->is_empty())
         columns_ref = clone_table_columns(subtable); // Throws
 
-    int_fast64_t value = int_fast64_t(columns_ref);
-    IntegerColumn::set(row_ndx, value); // Throws
+    IntegerColumn::set_as_ref(row_ndx, columns_ref); // Throws
 
     // Refresh the accessors, if present
     if (Table* table = m_subtable_map.find(row_ndx)) {
