@@ -507,7 +507,7 @@ void SlabAlloc::consolidate_free_read_only()
 }
 
 
-MemRef SlabAlloc::do_realloc(size_t ref, const char* addr, size_t old_size, size_t new_size)
+MemRef SlabAlloc::do_realloc(ref_type ref, const char* addr, size_t old_size, size_t new_size)
 {
     REALM_ASSERT_DEBUG(translate(ref) == addr);
     REALM_ASSERT(0 < new_size);

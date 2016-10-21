@@ -1037,7 +1037,7 @@ protected:
     Allocator& m_alloc;
 
 private:
-    size_t m_ref;
+    ref_type m_ref;
     ArrayParent* m_parent = nullptr;
     size_t m_ndx_in_parent = 0; // Ignored if m_parent is null.
 

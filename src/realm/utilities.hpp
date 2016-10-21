@@ -33,6 +33,7 @@
 #include <realm/util/features.h>
 #include <realm/util/assert.hpp>
 #include <realm/util/safe_int_ops.hpp>
+#include <realm/alloc.hpp>
 
 // GCC defines __i386__ and __x86_64__
 #if (defined(__X86__) || defined(__i386__) || defined(i386) || defined(_M_IX86) || defined(__386__) ||               \
@@ -197,7 +198,7 @@ enum IndexMethod {
 struct InternalFindResult {
     // Reference to a IntegerColumn containing result rows, or a single row
     // value if the result is FindRes_single.
-    size_t payload;
+    ref_type payload;
     // Offset into the result column to start at.
     size_t start_ndx;
     // Offset index in the result column to end at.

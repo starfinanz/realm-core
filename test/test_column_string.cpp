@@ -843,7 +843,7 @@ TEST(ColumnString_Null)
         CHECK_EQUAL(a.is_null(2), true);
         CHECK(a.get(0) == "foo");
 
-        size_t keys, values;
+        ref_type keys, values;
         bool res = a.auto_enumerate(keys, values, true);
         CHECK(res);
         StringEnumColumn e{Allocator::get_default(), values, keys, true};
@@ -993,7 +993,7 @@ TEST(ColumnString_SetNullThrowsUnlessNullable)
     c.add("Hello, World!");
     CHECK_LOGIC_ERROR(c.set_null(0), LogicError::column_not_nullable);
 
-    size_t keys, values;
+    ref_type keys, values;
     bool res = c.auto_enumerate(keys, values, true);
     CHECK(res);
     StringEnumColumn enum_column{Allocator::get_default(), values, keys, false};
@@ -1225,8 +1225,8 @@ TEST_TYPES(ColumnString_Count, non_nullable, nullable)
     CHECK_EQUAL(9, asc.count("HEJSA"));
 
     // Create StringEnum
-    size_t keys;
-    size_t values;
+    ref_type keys;
+    ref_type values;
     CHECK(asc.auto_enumerate(keys, values));
     StringEnumColumn e(Allocator::get_default(), values, keys, false);
 

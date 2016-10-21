@@ -219,10 +219,10 @@ private:
     void adjust_row_indexes(size_t min_row_ndx, int diff);
 
     struct NodeChange {
-        size_t ref1;
-        size_t ref2;
+        ref_type ref1;
+        ref_type ref2;
         enum ChangeType { none, insert_before, insert_after, split } type;
-        NodeChange(ChangeType t, size_t r1 = 0, size_t r2 = 0)
+        NodeChange(ChangeType t, ref_type r1 = 0, ref_type r2 = 0)
             : ref1(r1)
             , ref2(r2)
             , type(t)
