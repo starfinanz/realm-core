@@ -18,6 +18,18 @@ def buildDockerEnv(name) {
   return docker.image(name)
 }
 
+def readGitTag() {
+  sh "git describe --exact-match --tags HEAD | tail -n 1 > tag.txt 2>&1 || true"
+  def tag = readFile('tag.txt').trim()
+  return tag
+}
+
+def readGitSha() {
+  sh "git rev-parse HEAD | cut -b1-8 > sha.txt"
+  def sha = readFile('sha.txt').readLines().last().trim()
+  return sha
+}
+
 stage('Test Performance') {
   node('docker && brix && exclusive') {
     getSourceArchive()
