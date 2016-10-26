@@ -31,6 +31,8 @@ def readGitSha() {
 }
 
 stage('Test Performance') {
+  // Select docker-cph-X.  We want docker, metal (brix) and only one executor
+  // (exclusive)
   node('docker && brix && exclusive') {
     getSourceArchive()
 
@@ -44,11 +46,11 @@ stage('Test Performance') {
     }
 
     def buildEnv = buildDockerEnv('ci/realm-core:snapshot')
+
     buildEnv.inside {
-      env.REALM_BENCH_HIST = '/tmp/results'
       sh "cd test/bench && ./gen-bench.sh"
       withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'influxdb-core-benchmarks', passwordVariable: 'INFLUXDB_PASSWORD', usernameVariable: 'INFLUXDB_USER']]) {
-        sh 'cd test/bench && ./parse-bench-hist.py --remote http://\$INFLUXDB_USER:\$INFLUXDB_PASSWORD@influxdb.hub.realm:8086/write?db=core_benchmarks'
+        sh 'cd test/bench && ./parse-bench-hist.py --remote http://$INFLUXDB_USER:$INFLUXDB_PASSWORD@influxdb.hub.realm:8086/write?db=core_benchmarks'
       }
     }
   }
