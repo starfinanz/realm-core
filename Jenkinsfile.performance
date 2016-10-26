@@ -52,7 +52,7 @@ stage('Test Performance') {
         sh '''
           cd test/bench \
           && REALM_BENCH_HIST="$(pwd)" ./parse-bench-hist.py \
-            --remote http://$INFLUXDB_USER:$INFLUXDB_PASSWORD@influxdb.hub.realm:8086/write?db=core_benchmarks'
+            --remote "http://$INFLUXDB_USER:$INFLUXDB_PASSWORD@influxdb.hub.realm:8086/write?db=core_benchmarks"
         '''
       }
     }
