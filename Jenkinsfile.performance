@@ -1,0 +1,45 @@
+#!groovy
+
+def setBuildName(newBuildName) {
+  currentBuild.displayName = "${currentBuild.displayName} - ${newBuildName}"
+}
+
+def getSourceArchive() {
+  checkout scm
+  sh 'git clean -ffdx -e .????????'
+  sh 'git submodule update --init'
+}
+
+def buildDockerEnv(name) {
+  docker.withRegistry(env.DOCKER_REGISTRY, "ecr:eu-west-1:aws-ci-user") {
+    sh "./packaging/docker_build.sh $name ."
+  }
+
+  return docker.image(name)
+}
+
+stage('Test Performance') {
+  node('docker && brix && exclusive') {
+    getSourceArchive()
+
+    def gitTag = readGitTag()
+    def gitSha = readGitSha()
+
+    if (gitTag == "") {
+      setBuildName(gitSha)
+    } else {
+      setBuildName("Tag ${gitTag}")
+    }
+
+    def buildEnv = buildDockerEnv('ci/realm-core:snapshot')
+    buildEnv.inside {
+      dir('test/bench') {
+        env.REALM_BENCH_HIST = '/tmp/results'
+        sh "./gen-bench.sh"
+        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'influxdb-core-benchmarks', passwordVariable: 'INFLUXDB_PASSWORD', usernameVariable: 'INFLUXDB_USER']]) {
+          sh './parse-bench-hist.py --remote http://\$INFLUXDB_USER:\$INFLUXDB_PASSWORD@influxdb.hub.realm:8086/write?db=core_benchmarks'
+        }
+      }
+    }
+  }
+}
