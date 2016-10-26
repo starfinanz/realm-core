@@ -45,12 +45,10 @@ stage('Test Performance') {
 
     def buildEnv = buildDockerEnv('ci/realm-core:snapshot')
     buildEnv.inside {
-      dir('test/bench') {
-        env.REALM_BENCH_HIST = '/tmp/results'
-        sh "./gen-bench.sh"
-        withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'influxdb-core-benchmarks', passwordVariable: 'INFLUXDB_PASSWORD', usernameVariable: 'INFLUXDB_USER']]) {
-          sh './parse-bench-hist.py --remote http://\$INFLUXDB_USER:\$INFLUXDB_PASSWORD@influxdb.hub.realm:8086/write?db=core_benchmarks'
-        }
+      env.REALM_BENCH_HIST = '/tmp/results'
+      sh "cd test/bench && ./gen-bench.sh"
+      withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'influxdb-core-benchmarks', passwordVariable: 'INFLUXDB_PASSWORD', usernameVariable: 'INFLUXDB_USER']]) {
+        sh 'cd test/bench && ./parse-bench-hist.py --remote http://\$INFLUXDB_USER:\$INFLUXDB_PASSWORD@influxdb.hub.realm:8086/write?db=core_benchmarks'
       }
     }
   }
