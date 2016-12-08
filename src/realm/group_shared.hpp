@@ -519,6 +519,7 @@ private:
     util::File m_file;
     util::File::Map<SharedInfo> m_file_map; // Never remapped
     util::File::Map<SharedInfo> m_reader_map;
+    SharedGroupOptions saved_options;
     bool m_wait_for_change_enabled;
     std::string m_lockfile_path;
     std::string m_lockfile_prefix;

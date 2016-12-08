@@ -718,7 +718,7 @@ void SharedGroup::do_open(const std::string& path, bool no_create_file, bool is_
     if (options.durability == Durability::Async)
         throw std::runtime_error("Async mode not yet supported on Windows, iOS and watchOS");
 #endif
-
+    saved_options = options;
     m_db_path = path;
     m_coordination_dir = path + ".management";
     m_lockfile_path = path + ".lock";
@@ -1136,6 +1136,9 @@ bool SharedGroup::compact()
     if (m_transact_stage != transact_Ready) {
         throw std::runtime_error(m_db_path + ": compact is not supported whithin a transaction");
     }
+    typedef _impl::GroupFriend gf;
+    Replication* saved_repl = gf::get_replication(m_group);
+
     Durability dura;
     std::string tmp_path = m_db_path + ".tmp_compaction_space";
     {
@@ -1184,10 +1187,13 @@ bool SharedGroup::compact()
     util::File::copy(tmp_path, m_db_path);
 #endif
 
-    SharedGroupOptions new_options;
+    SharedGroupOptions new_options(saved_options);
     new_options.durability = dura;
     new_options.encryption_key = m_key;
     new_options.allow_file_format_upgrade = false;
+    if (saved_repl) {
+        gf::set_replication(m_group, saved_repl);
+    }
     do_open(m_db_path, true, false, new_options);
     return true;
 }
