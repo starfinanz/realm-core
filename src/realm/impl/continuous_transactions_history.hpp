@@ -77,13 +77,13 @@ public:
     /// end_version) that is outside the range [V,W] where V is the version that
     /// immediately precedes the first changeset available in the history as the
     /// history appears in the **latest** available snapshot, and W is the
-    /// versionm that immediately succeeds the last changeset available in the
+    /// version that immediately succeeds the last changeset available in the
     /// history as the history appears in the snapshot bound to the **current**
     /// transaction. This restriction is necessary to allow for different kinds
     /// of implementations of the history (separate standalone history or
     /// history as part of versioned Realm state).
     ///
-    /// The calee retains ownership of the memory referenced by those entries,
+    /// The callee retains ownership of the memory referenced by those entries,
     /// i.e., the memory referenced by `buffer[i].changeset` is **not** handed
     /// over to the caller.
     ///
@@ -177,8 +177,8 @@ private:
     Group* m_group = nullptr;
 
     /// Version on which the first changeset in the history is based, or if the
-    /// history is empty, the version associatede with currently bound
-    /// snapshot. In general, the version associatede with currently bound
+    /// history is empty, the version associated with the currently bound
+    /// snapshot. In general, the version associated with the currently bound
     /// snapshot is equal to `m_base_version + m_size`, but after
     /// add_changeset() is called, it is equal to one minus that.
     version_type m_base_version;
