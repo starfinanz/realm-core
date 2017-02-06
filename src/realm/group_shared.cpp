@@ -781,11 +781,15 @@ void SharedGroup::do_open(const std::string& path, bool no_create_file, bool is_
 
         // We hold the shared lock from here until we close the file!
 {LockGuard lock{g_out_mutex}; std::ostringstream o;
-o << "<{"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
+uint64_t tid;
+pthread_threadid_np(nullptr, &tid);
+o << "{s:"<<getpid()<<"/"<<tid<<":"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
 std::cerr << o.str();}
         m_file.lock_shared(); // Throws
 {LockGuard lock{g_out_mutex}; std::ostringstream o;
-o << "["<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"]>";
+uint64_t tid;
+pthread_threadid_np(nullptr, &tid);
+o << "{t:"<<getpid()<<"/"<<tid<<":"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
 std::cerr << o.str();}
 
         // If the file is not completely initialized at this point in time, the
@@ -1283,6 +1287,11 @@ void SharedGroup::close() noexcept
     // interleave which is not permitted on Windows. It is permitted on *nix.
     m_file_map.unmap();
     m_reader_map.unmap();
+{LockGuard lock{g_out_mutex}; std::ostringstream o;
+uint64_t tid;
+pthread_threadid_np(nullptr, &tid);
+o << "{U:"<<getpid()<<"/"<<tid<<":"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
+std::cerr << o.str();}
     m_file.unlock();
     // info->~SharedInfo(); // DO NOT Call destructor
     m_file.close();
@@ -1824,7 +1833,9 @@ bool SharedGroup::grow_reader_mapping(uint_fast32_t index)
         size_t info_size = sizeof(SharedInfo) + r_info->readers.compute_required_space(m_local_max_entry);
         // std::cout << "Growing reader mapping to " << infosize << std::endl;
 {LockGuard lock{g_out_mutex}; std::ostringstream o;
-o << "{"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
+uint64_t tid;
+pthread_threadid_np(nullptr, &tid);
+o << "{g:"<<getpid()<<"/"<<tid<<":"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
 std::cerr << o.str();}
         m_reader_map.remap(m_file, util::File::access_ReadWrite, info_size); // Throws
         return true;

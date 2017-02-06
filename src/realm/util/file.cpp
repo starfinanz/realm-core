@@ -800,7 +800,7 @@ void File::unlock() noexcept
 {LockGuard lock_2{g_out_mutex}; std::ostringstream o;
 uint64_t tid;
 pthread_threadid_np(nullptr, &tid);
-o << "{u:"<<getpid()<<":"<<tid<<":"<<m_fd<<"}";
+o << "{u:"<<getpid()<<"/"<<tid<<"|"<<m_fd<<"}";
 std::cerr << o.str();}
 
     // The Linux man page for flock() does not state explicitely that
