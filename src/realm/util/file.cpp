@@ -36,8 +36,6 @@
 #else
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/syscall.h>                                        
-#include <sys/types.h>                                     
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/file.h> // BSD / Linux flock()
@@ -800,7 +798,9 @@ void File::unlock() noexcept
 #else // BSD / Linux flock()
 
 {LockGuard lock_2{g_out_mutex}; std::ostringstream o;
-o << "{u:"<<getpid()<<":"<<syscall(SYS_gettid)<<":"<<m_fd<<"}";
+uint64_t tid;
+pthread_threadid_np(nullptr, &tid);
+o << "{u:"<<getpid()<<":"<<tid<<":"<<m_fd<<"}";
 std::cerr << o.str();}
 
     // The Linux man page for flock() does not state explicitely that
