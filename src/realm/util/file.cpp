@@ -20,6 +20,8 @@
 #include <limits>
 #include <algorithm>
 #include <vector>
+#include <sstream>                                           
+#include <iostream>                                           
 
 #include <cerrno>
 #include <cstring>
@@ -34,6 +36,8 @@
 #else
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/syscall.h>                                        
+#include <sys/types.h>                                     
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/file.h> // BSD / Linux flock()
@@ -48,6 +52,8 @@
 
 using namespace realm;
 using namespace realm::util;
+
+Mutex realm::g_out_mutex;
 
 namespace {
 #ifdef _WIN32 // Windows - GetLastError()
@@ -792,6 +798,10 @@ void File::unlock() noexcept
     m_have_lock = false;
 
 #else // BSD / Linux flock()
+
+{LockGuard lock_2{g_out_mutex}; std::ostringstream o;
+o << "{u:"<<getpid()<<":"<<syscall(SYS_gettid)<<":"<<m_fd<<"}";
+std::cerr << o.str();}
 
     // The Linux man page for flock() does not state explicitely that
     // unlocking is idempotent, however, we will assume it since there

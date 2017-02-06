@@ -54,8 +54,6 @@ using Durability = SharedGroupOptions::Durability;
 
 namespace {
 
-Mutex g_out_mutex;
-
 // Constants controlling the amount of uncommited writes in flight:
 #ifdef REALM_ASYNC_DAEMON
 const uint16_t max_write_slots = 100;
