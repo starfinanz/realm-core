@@ -502,7 +502,6 @@ public:
     class NotFound;
     class Exists;
 
-private:
 #ifdef _WIN32
     void* m_handle;
     bool m_have_lock; // Only valid when m_handle is not null
