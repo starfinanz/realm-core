@@ -1290,7 +1290,7 @@ void SharedGroup::close() noexcept
 {LockGuard lock{g_out_mutex}; std::ostringstream o;
 uint64_t tid;
 pthread_threadid_np(nullptr, &tid);
-o << "{U:"<<getpid()<<"/"<<tid<<":"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
+o << "{u:"<<getpid()<<"/"<<tid<<":"<<static_cast<void*>(this)<<"|"<<m_file.m_fd<<"}";
 std::cerr << o.str();}
     m_file.unlock();
     // info->~SharedInfo(); // DO NOT Call destructor
