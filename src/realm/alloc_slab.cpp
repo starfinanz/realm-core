@@ -519,9 +519,11 @@ MemRef SlabAlloc::do_realloc(size_t ref, const char* addr, size_t old_size, size
 
     // Copy existing segment
     char* new_addr = new_mem.get_addr();
+    std::cout << "     SlabAlloc::do_realloc: alloc( " << new_size << " ) -> " << (void*)new_addr << std::endl;
     realm::safe_copy_n(addr, old_size, new_addr);
 
     // Add old segment to freelist
+    std::cout << "     SlabAlloc::do_realloc: free( " << ref << ", " << (void*)addr << " )" << std::endl;
     do_free(ref, addr);
 
 #ifdef REALM_DEBUG
