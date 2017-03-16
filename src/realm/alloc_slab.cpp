@@ -23,9 +23,9 @@
 #include <mutex>
 #include <map>
 
-#ifdef REALM_DEBUG
 #include <iostream>
-#endif
+#include <sstream>
+#include <android/log.h>
 
 #ifdef REALM_SLAB_ALLOC_DEBUG
 #include <cstdlib>
@@ -519,19 +519,27 @@ MemRef SlabAlloc::do_realloc(size_t ref, const char* addr, size_t old_size, size
 
     // Copy existing segment
     char* new_addr = new_mem.get_addr();
-    std::cout << "     SlabAlloc::do_realloc: alloc( " << new_size << " ) -> " << (void*)new_addr << std::endl;
+    {
+        std::ostringstream oss;
+        oss << "     SlabAlloc::do_realloc: alloc( " << new_size << " ) -> " << (void*)new_addr;
+        __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+    }
     realm::safe_copy_n(addr, old_size, new_addr);
 
     // Add old segment to freelist
-    std::cout << "     SlabAlloc::do_realloc: free( " << ref << ", " << (void*)addr << " )" << std::endl;
+    {
+        std::ostringstream oss;
+        oss << "     SlabAlloc::do_realloc: free( " << ref << ", " << (void*)addr << " )";
+        __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+    }
     do_free(ref, addr);
 
-#ifdef REALM_DEBUG
     if (REALM_COVER_NEVER(m_debug_out)) {
-        std::cerr << "Realloc orig_ref: " << ref << " old_size: " << old_size << " new_ref: " << new_mem.get_ref()
-                  << " new_size: " << new_size << "\n";
+        std::ostringstream oss;
+        oss << "Realloc orig_ref: " << ref << " old_size: " << old_size << " new_ref: " << new_mem.get_ref()
+            << " new_size: " << new_size;
+        __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
     }
-#endif // REALM_DEBUG
 
     return new_mem;
 }

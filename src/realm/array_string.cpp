@@ -20,11 +20,11 @@
 #include <algorithm>
 #include <cstring>
 
-#ifdef REALM_DEBUG
 #include <cstdio>
 #include <iostream>
 #include <iomanip>
-#endif
+#include <sstream>
+#include <android/log.h>
 
 #include <realm/utilities.hpp>
 #include <realm/array_string.hpp>
@@ -80,8 +80,11 @@ void ArrayString::set(size_t ndx, StringData value)
         return; // existing element in array already equals the value we want to set it to
     }
 
-    std::cout << "ArrayString::set(" << ndx << ", " << value << ")" << std::endl;
-        
+    {
+        std::ostringstream oss;
+        oss << "ArrayString::set(" << ndx << ", " << value << ")";
+        __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+    }
     // Make room for the new value plus a zero-termination
     if (m_width <= value.size()) {
 
@@ -95,29 +98,45 @@ void ArrayString::set(size_t ndx, StringData value)
         // Expand the old values in reverse order
         if (0 < m_width) {
 
-            std::cout << "ArrayString:: - expanding non-empty elements from "
-                      << (int)m_width << " to " << new_width << std::endl;
+            {
+                std::ostringstream oss;
+                oss << "ArrayString:: - expanding non-empty elements from "
+                    << (int)m_width << " to " << new_width;
+                __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+            }
             
             const char* old_end = base + m_size * m_width;
             while (new_end != base) {
 
-                std::cout << "ArrayString:: - * A: new_end: " << (void*)new_end << " old_end: "
-                          << (void*)old_end << std::endl;
+                {
+                    std::ostringstream oss;
+                    oss << "ArrayString:: - * A: new_end: " << (void*)new_end << " old_end: "
+                        << (void*)old_end;
+                    __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+                }
                 
                 *--new_end = char(*--old_end + (new_width - m_width));
                 {
                     // extend 0-padding
                     char* new_begin = new_end - (new_width - m_width);
-                    std::cout << "ArrayString:: - - B: new_end: " << (void*)new_end << " old_end: "
-                              << (void*)old_end << " new_begin: " << (void*)new_begin << std::endl;
+                    {
+                        std::ostringstream oss;
+                        oss << "ArrayString:: - - B: new_end: " << (void*)new_end << " old_end: "
+                            << (void*)old_end << " new_begin: " << (void*)new_begin;
+                        __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+                    }
                     std::fill(new_begin, new_end, 0);
                     new_end = new_begin;
                 }
                 {
                     // copy string payload
                     const char* old_begin = old_end - (m_width - 1);
-                    std::cout << "ArrayString:: - - C: new_end: " << (void*)new_end << " old_end: "
-                              << (void*)old_end << " old_begin: " << (void*)old_begin << std::endl;
+                    {
+                        std::ostringstream oss;
+                        oss << "ArrayString:: - - C: new_end: " << (void*)new_end << " old_end: "
+                            << (void*)old_end << " old_begin: " << (void*)old_begin;
+                        __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+                    }
                     if (static_cast<size_t>(old_end - old_begin) < m_width) // non-null string
                         new_end = std::copy_backward(old_begin, old_end, new_end);
                     old_end = old_begin;
@@ -126,7 +145,11 @@ void ArrayString::set(size_t ndx, StringData value)
         }
         else {
             // m_width == 0. Expand to new width.
-            std::cout << "ArrayString:: - expanding from empty elements to " << new_width << std::endl;
+            {
+                std::ostringstream oss;
+                oss << "ArrayString:: - expanding from empty elements to " << new_width;
+                __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+            }
 
             while (new_end != base) {
                 REALM_ASSERT_3(new_width, <=, max_width);
@@ -152,8 +175,12 @@ void ArrayString::set(size_t ndx, StringData value)
     // Set the value
     char* begin = m_data + (ndx * m_width);
     char* end = begin + (m_width - 1);
-    std::cout << "ArrayString:: - set: begin: " << (void*)begin << " end: "
-              << (void*)end << " value: " << value << std::endl;
+    {
+        std::ostringstream oss;
+        oss << "ArrayString:: - set: begin: " << (void*)begin << " end: "
+            << (void*)end << " value: " << value;
+        __android_log_print(ANDROID_LOG_DEBUG, "REALM", "%s", oss.str().c_str());
+    }
     begin = realm::safe_copy_n(value.data(), value.size(), begin);
     std::fill(begin, end, 0); // Pad with zero bytes
     static_assert(max_width <= max_width, "Padding size must fit in 7-bits");
