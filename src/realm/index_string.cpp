@@ -584,7 +584,7 @@ IndexArray* StringIndex::create_node(Allocator& alloc, bool is_leaf)
     Array values(alloc);
     values.create(Array::type_Normal);       // Throws
     values.ensure_minimum_width(0x7FFFFFFF); // This ensures 31 bits plus a sign bit
-    top->add(values.get_ref());              // first entry in refs points to offsets
+    top->add(from_ref(values.get_ref()));    // first entry in refs points to offsets
 
     return top.release();
 }
@@ -662,7 +662,7 @@ void StringIndex::insert_to_existing_list(size_t row, StringData value, IntegerC
 }
 
 
-void StringIndex::insert_row_list(size_t ref, size_t offset, StringData value)
+void StringIndex::insert_row_list(ref_type ref, size_t offset, StringData value)
 {
     REALM_ASSERT(!m_array->is_inner_bptree_node()); // only works in leaves
 
@@ -679,7 +679,7 @@ void StringIndex::insert_row_list(size_t ref, size_t offset, StringData value)
     if (ins_pos == values.size()) {
         // When key is outside current range, we can just add it
         values.add(key);
-        m_array->add(ref);
+        m_array->add(from_ref(ref));
         return;
     }
 
@@ -692,7 +692,7 @@ void StringIndex::insert_row_list(size_t ref, size_t offset, StringData value)
 
     // If key is not present we add it at the correct location
     values.insert(ins_pos, key);
-    m_array->insert(ins_pos + 1, ref);
+    m_array->insert(ins_pos + 1, from_ref(ref));
 }
 
 
@@ -966,7 +966,7 @@ bool StringIndex::leaf_insert(size_t row_ndx, key_type key, size_t offset, Strin
             row_list.create(Array::type_Normal); // Throws
             row_list.add(row_ndx < row_ndx2 ? row_ndx : row_ndx2);
             row_list.add(row_ndx < row_ndx2 ? row_ndx2 : row_ndx);
-            m_array->set(ins_pos_refs, row_list.get_ref());
+            m_array->set_as_ref(ins_pos_refs, row_list.get_ref());
         }
         else {
             if (suboffset > s_max_offset) {
@@ -977,7 +977,7 @@ bool StringIndex::leaf_insert(size_t row_ndx, key_type key, size_t offset, Strin
                 row_list.create(Array::type_Normal); // Throws
                 row_list.add(row_ndx_first ? row_ndx : row_ndx2);
                 row_list.add(row_ndx_first ? row_ndx2 : row_ndx);
-                m_array->set(ins_pos_refs, row_list.get_ref());
+                m_array->set_as_ref(ins_pos_refs, row_list.get_ref());
             }
             else {
                 // These strings have the same prefix up to this point but they
@@ -987,7 +987,7 @@ bool StringIndex::leaf_insert(size_t row_ndx, key_type key, size_t offset, Strin
                 subindex.insert_with_offset(row_ndx2, v2, suboffset);
                 subindex.insert_with_offset(row_ndx, value, suboffset);
                 // Join the string of SubIndices to the current position of m_array
-                m_array->set(ins_pos_refs, subindex.get_ref());
+                m_array->set_as_ref(ins_pos_refs, subindex.get_ref());
             }
         }
         return true;
@@ -1052,7 +1052,7 @@ bool StringIndex::leaf_insert(size_t row_ndx, key_type key, size_t offset, Strin
                 StringIndex subindex(m_target_column, m_array->get_alloc());
                 subindex.insert_row_list(sub.get_ref(), suboffset, v2);
                 subindex.insert_with_offset(row_ndx, value, suboffset);
-                m_array->set(ins_pos_refs, subindex.get_ref());
+                m_array->set_as_ref(ins_pos_refs, subindex.get_ref());
             }
         }
         return true;

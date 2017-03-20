@@ -911,7 +911,7 @@ void Table::do_insert_root_column(size_t ndx, ColumnType type, StringData name, 
     Spec::ColumnInfo info = m_spec.get_column_info(ndx);
     size_t ndx_in_parent = info.m_column_ref_ndx;
     ref_type col_ref = create_column(type, m_size, nullable, m_columns.get_alloc()); // Throws
-    m_columns.insert(ndx_in_parent, col_ref);                                        // Throws
+    m_columns.insert(ndx_in_parent, from_ref(col_ref));                              // Throws
 }
 
 

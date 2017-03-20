@@ -518,7 +518,7 @@ void BpTreeNode::create_bptree_offsets(Array& offsets, int_fast64_t first_value)
         accum_num_elems += elems_per_child;
         offsets.add(accum_num_elems); // Throws
     }
-    set(0, offsets.get_ref()); // Throws
+    set_as_ref(0, offsets.get_ref()); // Throws
 }
 
 

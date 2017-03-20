@@ -346,10 +346,10 @@ void Spec::upgrade_string_to_enum(size_t column_ndx, ref_type keys_ref, ArrayPar
         if (m_top.size() == 3)
             m_top.add(0); // no subtables
         if (m_top.size() == 4) {
-            m_top.add(m_enumkeys.get_ref());
+            m_top.add(from_ref(m_enumkeys.get_ref()));
         }
         else {
-            m_top.set(4, m_enumkeys.get_ref());
+            m_top.set_as_ref(4, m_enumkeys.get_ref());
         }
         m_enumkeys.set_parent(&m_top, 4);
     }

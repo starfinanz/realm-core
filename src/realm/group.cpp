@@ -383,13 +383,13 @@ void Group::create_empty_group()
     {
         m_table_names.create(); // Throws
         _impl::DestroyGuard<ArrayString> dg(&m_table_names);
-        m_top.add(m_table_names.get_ref()); // Throws
+        m_top.add(from_ref(m_table_names.get_ref())); // Throws
         dg.release();
     }
     {
         m_tables.create(Array::type_HasRefs); // Throws
         _impl::DestroyGuard<ArrayInteger> dg(&m_tables);
-        m_top.add(m_tables.get_ref()); // Throws
+        m_top.add(from_ref(m_tables.get_ref())); // Throws
         dg.release();
     }
     size_t initial_logical_file_size = sizeof(SlabAlloc::Header);

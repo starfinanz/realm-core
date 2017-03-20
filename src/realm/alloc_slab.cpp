@@ -323,7 +323,7 @@ MemRef SlabAlloc::do_alloc(const size_t size)
     }
     else {
         // Find size of memory that has been modified (through copy-on-write) in current write transaction
-        ref_type curr_ref_end = to_size_t(m_slabs.back().ref_end);
+        ref_type curr_ref_end = m_slabs.back().ref_end;
         size_t copy_on_write = curr_ref_end - m_baseline;
 
         // Allocate 20% of that (for the first few number of slabs the math below will just result in 1 page each)

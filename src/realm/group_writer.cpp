@@ -107,7 +107,7 @@ size_t GroupWriter::MapWindow::get_window_size(util::File& f, ref_type start_ref
 // and return true. If the request falls in a different 1MB window, it'll return false.
 bool GroupWriter::MapWindow::extends_to_match(util::File& f, ref_type start_ref, size_t size)
 {
-    size_t aligned_ref = aligned_to_mmap_block(start_ref);
+    ref_type aligned_ref = aligned_to_mmap_block(start_ref);
     if (aligned_ref != base_ref)
         return false;
     size_t window_size = get_window_size(f, start_ref, size);
