@@ -184,7 +184,7 @@ void ArrayBlob::verify() const
         REALM_ASSERT(has_refs());
         for (size_t i = 0; i < size(); ++i) {
             ref_type blob_ref = Array::get_as_ref(i);
-            REALM_ASSERT(blob_ref != 0);
+            REALM_ASSERT(blob_ref);
             ArrayBlob blob(m_alloc);
             blob.init_from_ref(blob_ref);
             blob.verify();

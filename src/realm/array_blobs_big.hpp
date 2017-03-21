@@ -102,7 +102,7 @@ inline ArrayBigBlobs::ArrayBigBlobs(Allocator& allocator, bool nullable) noexcep
 inline BinaryData ArrayBigBlobs::get(size_t ndx) const noexcept
 {
     ref_type ref = get_as_ref(ndx);
-    if (ref == 0)
+    if (!ref)
         return {}; // realm::null();
 
     const char* blob_header = get_alloc().translate(ref);
@@ -117,7 +117,7 @@ inline BinaryData ArrayBigBlobs::get(size_t ndx) const noexcept
 inline BinaryData ArrayBigBlobs::get(const char* header, size_t ndx, Allocator& alloc) noexcept
 {
     ref_type blob_ref = to_ref(Array::get(header, ndx));
-    if (blob_ref == 0)
+    if (!blob_ref)
         return {};
 
     const char* blob_header = alloc.translate(blob_ref);
@@ -132,7 +132,7 @@ inline BinaryData ArrayBigBlobs::get(const char* header, size_t ndx, Allocator& 
 inline void ArrayBigBlobs::erase(size_t ndx)
 {
     ref_type blob_ref = Array::get_as_ref(ndx);
-    if (blob_ref != 0) {                       // nothing to destroy if null
+    if (blob_ref) {                                 // nothing to destroy if null
         Array::destroy_deep(blob_ref, get_alloc()); // Deep
     }
     Array::erase(ndx);

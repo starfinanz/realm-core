@@ -34,7 +34,38 @@ class Allocator;
 
 class Replication;
 
-using ref_type = size_t;
+// using ref_type = size_t;
+
+struct ref_type {
+    size_t m_value;
+    bool operator==(const ref_type& other) const
+    {
+        return m_value == other.m_value;
+    }
+    bool operator!=(const ref_type& other) const
+    {
+        return !operator==(other);
+    }
+    bool operator<(const ref_type& other) const
+    {
+        return m_value < other.m_value;
+    }
+    explicit operator bool() const
+    {
+        return m_value != 0;
+    }
+    static ref_type zero()
+    {
+        return {0};
+    }
+};
+
+std::ostream& operator<<(std::ostream& os, const ref_type& ref)
+{
+    //        os << ref.m_value;
+    return os;
+}
+
 
 int_fast64_t from_ref(ref_type) noexcept;
 ref_type to_ref(int_fast64_t) noexcept;
@@ -214,14 +245,14 @@ public:
     int get_file_format_version() const noexcept;
 
 protected:
-    size_t m_baseline = 0; // Separation line between immutable and mutable refs.
+    ref_type m_baseline = to_ref(0); // Separation line between immutable and mutable refs.
 
     Replication* m_replication = nullptr;
 
     /// See get_file_format_version().
     int m_file_format_version = 0;
 
-    ref_type m_debug_watch = 0;
+    ref_type m_debug_watch = ref_type::zero;
 
     /// The specified size must be divisible by 8, and must not be
     /// zero.
@@ -296,13 +327,15 @@ inline bool Allocator::should_propagate_version(uint_fast64_t& local_version) no
 
 // Implementation:
 
-inline int_fast64_t from_ref(ref_type v) noexcept
+inline int_fast64_t from_ref(ref_type ref) noexcept
 {
+    size_t v = ref.m_value;
     // Check that v is divisible by 8 (64-bit aligned).
     REALM_ASSERT_DEBUG(v % 8 == 0);
 
-    static_assert(std::is_same<ref_type, size_t>::value,
-                  "If ref_type changes, from_ref and to_ref should probably be updated");
+    // this should be reverted
+    //    static_assert(std::is_same<ref_type, size_t>::value,
+    //                  "If ref_type changes, from_ref and to_ref should probably be updated");
 
     // Make sure that we preserve the bit pattern of the ref_type (without sign extension).
     return util::from_twos_compl<int_fast64_t>(uint_fast64_t(v));
@@ -318,9 +351,10 @@ inline ref_type to_ref(int_fast64_t v) noexcept
     // integer (modulo 2n where n is the number of bits used to represent the unsigned type). [ Note: In a two's
     // complement representation, this conversion is conceptual and there is no change in the bit pattern (if there is
     // no truncation). - end note ]
-    static_assert(std::is_unsigned<ref_type>::value,
-                  "If ref_type changes, from_ref and to_ref should probably be updated");
-    return ref_type(v);
+    // this should be reverted
+    ref_type ref;
+    ref.m_value = v;
+    return ref;
 }
 
 inline int64_t to_int64(size_t value) noexcept
@@ -333,7 +367,7 @@ inline int64_t to_int64(size_t value) noexcept
 
 inline MemRef::MemRef() noexcept
     : m_addr(nullptr)
-    , m_ref(0)
+    , m_ref(ref_type::zero)
 {
 }
 
@@ -428,8 +462,8 @@ inline char* Allocator::translate(ref_type ref) const noexcept
 
 inline bool Allocator::is_read_only(ref_type ref) const noexcept
 {
-    REALM_ASSERT_DEBUG(ref != 0);
-    REALM_ASSERT_DEBUG(m_baseline != 0); // Attached SlabAlloc
+    REALM_ASSERT_DEBUG(ref);
+    REALM_ASSERT_DEBUG(m_baseline); // Attached SlabAlloc
     return ref < m_baseline;
 }
 

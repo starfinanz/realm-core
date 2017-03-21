@@ -282,7 +282,7 @@ void Group::remap(size_t new_file_size)
 
 void Group::remap_and_update_refs(ref_type new_top_ref, size_t new_file_size)
 {
-    size_t old_baseline = m_alloc.get_baseline();
+    ref_type old_baseline = m_alloc.get_baseline();
 
     m_alloc.update_reader_view(new_file_size); // Throws
     update_refs(new_top_ref, old_baseline);

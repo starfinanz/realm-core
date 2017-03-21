@@ -1140,25 +1140,26 @@ void StringIndex::adjust_row_indexes(size_t min_row_ndx, int diff)
     }
     else {
         for (size_t i = 1; i < array_size; ++i) {
-            int64_t ref = m_array->get(i);
+            RefOrTagged rot = m_array->get_as_ref_or_tagged(i);
 
-            // low bit set indicate literal ref (shifted)
-            if (ref & 1) {
-                size_t r = size_t(uint64_t(ref) >> 1);
-                if (r >= min_row_ndx) {
-                    size_t adjusted_ref = ((r + diff) << 1) + 1;
-                    m_array->set(i, adjusted_ref);
+            // low bit set indicate literal row index
+            if (rot.is_tagged()) {
+                size_t row_ndx = to_size_t(rot.get_as_int());
+                if (row_ndx >= min_row_ndx) {
+                    RefOrTagged adjusted_rot = RefOrTagged::make_tagged(row_ndx + diff);
+                    m_array->set(i, adjusted_rot);
                 }
             }
             else {
                 // A real ref either points to a list or a subindex
-                char* header = alloc.translate(to_ref(ref));
+                ref_type ref = rot.get_as_ref();
+                char* header = alloc.translate(ref);
                 if (Array::get_context_flag_from_header(header)) {
-                    StringIndex ndx(to_ref(ref), m_array.get(), i, m_target_column, alloc);
+                    StringIndex ndx(ref, m_array.get(), i, m_target_column, alloc);
                     ndx.adjust_row_indexes(min_row_ndx, diff);
                 }
                 else {
-                    IntegerColumn sub(alloc, to_ref(ref)); // Throws
+                    IntegerColumn sub(alloc, ref); // Throws
                     sub.set_parent(m_array.get(), i);
                     sub.adjust_ge(min_row_ndx, diff);
                 }

@@ -54,7 +54,7 @@ private:
 // Implementation:
 
 inline OutputStream::OutputStream(std::ostream& out)
-    : m_next_ref(0)
+    : m_next_ref(ref_type::zero)
     , m_out(out)
 {
 }

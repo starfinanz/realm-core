@@ -266,7 +266,7 @@ public:
     /// It is an error to call this function on a detached allocator,
     /// or one that was attached using attach_empty(). Doing so will
     /// result in undefined behavior.
-    size_t get_baseline() const noexcept;
+    ref_type get_baseline() const noexcept;
 
     /// Get the total amount of managed memory. This is the baseline plus the
     /// sum of the sizes of the allocated slabs. It includes any free space.
@@ -432,7 +432,7 @@ private:
 
     bool m_debug_out = false;
     struct hash_entry {
-        ref_type ref = 0;
+        ref_type ref = ref_type::zero;
         const char* addr = nullptr;
         size_t version = 0;
     };
@@ -548,7 +548,7 @@ inline bool SlabAlloc::nonempty_attachment() const noexcept
     return is_attached() && m_data;
 }
 
-inline size_t SlabAlloc::get_baseline() const noexcept
+inline ref_type SlabAlloc::get_baseline() const noexcept
 {
     REALM_ASSERT_DEBUG(is_attached());
     return m_baseline;

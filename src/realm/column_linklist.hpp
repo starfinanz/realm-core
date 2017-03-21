@@ -225,7 +225,7 @@ inline ref_type LinkListColumn::get_row_ref(size_t row_ndx) const noexcept
 
 inline void LinkListColumn::set_row_ref(size_t row_ndx, ref_type new_ref)
 {
-    LinkColumnBase::set(row_ndx, new_ref); // Throws
+    LinkColumnBase::set(row_ndx, from_ref(new_ref)); // Throws
 }
 
 inline void LinkListColumn::add_backlink(size_t target_row, size_t source_row)

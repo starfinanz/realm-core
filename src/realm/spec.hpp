@@ -437,7 +437,7 @@ inline bool Spec::has_backlinks() const noexcept
 // may be empty if the spec contains enumkeys (at index 4) but no subspec types.
 inline bool Spec::has_subspec() const noexcept
 {
-    return (m_top.size() >= 4) && (m_top.get_as_ref(3) != 0);
+    return (m_top.size() >= 4) && m_top.get_as_ref(3));
 }
 
 inline bool Spec::operator!=(const Spec& s) const noexcept
