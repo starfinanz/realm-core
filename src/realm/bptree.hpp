@@ -569,7 +569,7 @@ ref_type BpTreeNode::bptree_append(TreeInsert<TreeTraits>& state)
     if (REALM_LIKELY(!new_sibling_ref)) {
         // +2 because stored value is 1 + 2*total_elems_in_subtree
         adjust(size() - 1, +2); // Throws
-        return ref_type::zero;  // Child was not split, so parent was not split either
+        return ref_type::zero(); // Child was not split, so parent was not split either
     }
 
     Array offsets(m_alloc);
@@ -635,7 +635,7 @@ ref_type BpTreeNode::bptree_insert(size_t elem_ndx, TreeInsert<TreeTraits>& stat
         // +2 because stored value is 1 + 2*total_elems_in_subtree
         adjust(size() - 1, +2); // Throws
         offsets.adjust(child_ndx, offsets.size(), +1);
-        return ref_type::zero; // Child was not split, so parent was not split either
+        return ref_type::zero(); // Child was not split, so parent was not split either
     }
 
     return insert_bptree_child(offsets, child_ndx, new_sibling_ref, state); // Throws

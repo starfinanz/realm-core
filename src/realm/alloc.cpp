@@ -27,7 +27,6 @@
 
 using namespace realm;
 
-
 // FIXME: Casting a pointers to size_t is inherently
 // nonportable. For example, systems exist where pointers are 64 bits
 // and size_t is 32. One idea would be to use a different type

@@ -149,7 +149,7 @@ public:
     }
     bool operator()(const Chunk& chunk) const noexcept
     {
-        return chunk.ref + chunk.size == m_ref;
+        return chunk.ref.m_value + chunk.size == m_ref.m_value;
     }
 
 private:

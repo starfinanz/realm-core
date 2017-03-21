@@ -363,7 +363,7 @@ ref_type BasicArray<T>::bptree_leaf_insert(size_t ndx, T value, TreeInsertBase& 
         ndx = leaf_size;
     if (REALM_LIKELY(leaf_size < REALM_MAX_BPNODE_SIZE)) {
         insert(ndx, value);
-        return ref_type::zero; // Leaf was not split
+        return ref_type::zero(); // Leaf was not split
     }
 
     // Split leaf node

@@ -226,7 +226,7 @@ inline ref_type DeepArrayRefDestroyGuard::get() const noexcept
 inline ref_type DeepArrayRefDestroyGuard::release() noexcept
 {
     ref_type ref = m_ref;
-    m_ref = ref_type::zero;
+    m_ref = ref_type::zero();
     return ref;
 }
 

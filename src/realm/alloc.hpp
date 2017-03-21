@@ -34,8 +34,6 @@ class Allocator;
 
 class Replication;
 
-// using ref_type = size_t;
-
 struct ref_type {
     size_t m_value;
     bool operator==(const ref_type& other) const
@@ -50,11 +48,29 @@ struct ref_type {
     {
         return m_value < other.m_value;
     }
+    bool operator>(const ref_type& other) const
+    {
+        return m_value > other.m_value;
+    }
+    bool operator>=(const ref_type& other) const
+    {
+        return !operator<(other);
+    }
+    void operator+=(const size_t add)
+    {
+        m_value += add;
+    }
+    ref_type operator-(const ref_type& other) const
+    {
+        REALM_ASSERT_DEBUG_EX(m_value >= other.m_value, m_value, other.m_value);
+        size_t res = m_value - other.m_value;
+        return {res};
+    }
     explicit operator bool() const
     {
         return m_value != 0;
     }
-    static ref_type zero()
+    static constexpr ref_type zero()
     {
         return {0};
     }
@@ -62,7 +78,7 @@ struct ref_type {
 
 std::ostream& operator<<(std::ostream& os, const ref_type& ref)
 {
-    //        os << ref.m_value;
+    //    os << ref.m_value;
     return os;
 }
 
@@ -252,7 +268,7 @@ protected:
     /// See get_file_format_version().
     int m_file_format_version = 0;
 
-    ref_type m_debug_watch = ref_type::zero;
+    ref_type m_debug_watch = ref_type::zero();
 
     /// The specified size must be divisible by 8, and must not be
     /// zero.
@@ -367,7 +383,7 @@ inline int64_t to_int64(size_t value) noexcept
 
 inline MemRef::MemRef() noexcept
     : m_addr(nullptr)
-    , m_ref(ref_type::zero)
+    , m_ref(ref_type::zero())
 {
 }
 

@@ -432,7 +432,7 @@ private:
 
     bool m_debug_out = false;
     struct hash_entry {
-        ref_type ref = ref_type::zero;
+        ref_type ref = ref_type::zero();
         const char* addr = nullptr;
         size_t version = 0;
     };
