@@ -324,7 +324,7 @@ MemRef SlabAlloc::do_alloc(const size_t size)
     else {
         // Find size of memory that has been modified (through copy-on-write) in current write transaction
         ref_type curr_ref_end = m_slabs.back().ref_end;
-        size_t copy_on_write = curr_ref_end - m_baseline;
+        size_t copy_on_write = (curr_ref_end - m_baseline).m_value;
 
         // Allocate 20% of that (for the first few number of slabs the math below will just result in 1 page each)
         size_t min_size = static_cast<size_t>(0.2 * copy_on_write);
@@ -544,7 +544,7 @@ char* SlabAlloc::do_translate(ref_type ref) const noexcept
 
     const char* addr = nullptr;
 
-    size_t cache_index = ref ^ ((ref >> 16) >> 16);
+    size_t cache_index = ref.m_value ^ ((ref.m_value >> 16) >> 16);
     // we shift by 16 two times. On 32-bitters it's undefined to shift by
     // 32. Shifting twice x16 however, is defined and gives zero. On 64-bitters
     // the compiler should reduce it to a single 32 bit shift.
@@ -559,7 +559,7 @@ char* SlabAlloc::do_translate(ref_type ref) const noexcept
 
         // fast path if reference is inside the initial mapping (or buffer):
         if (ref < m_initial_chunk_size) {
-            addr = m_data + ref;
+            addr = m_data + ref.m_value;
             if (m_file_mappings) {
                 // Once established, the initial mapping is immutable, so we
                 // don't need to grab a lock for access.

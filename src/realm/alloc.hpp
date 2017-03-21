@@ -60,9 +60,22 @@ struct ref_type {
     {
         m_value += add;
     }
+    //    size_t operator+(const size_t add)
+    //    {
+    //        return m_value + add;
+    //    }
+    ref_type operator+(const size_t add)
+    {
+        return {m_value + add};
+    }
     ref_type operator-(const ref_type& other) const
     {
         REALM_ASSERT_DEBUG_EX(m_value >= other.m_value, m_value, other.m_value);
+        size_t res = m_value - other.m_value;
+        return {res};
+    }
+    ref_type operator+(const ref_type& other) const
+    {
         size_t res = m_value - other.m_value;
         return {res};
     }
