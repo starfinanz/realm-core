@@ -73,7 +73,7 @@ struct _Versions {
 
 DbImp::DbImp(const char* fname) : fname(fname) {
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-    fd = open(fname, O_RDWR | O_CREAT | O_EXCL, mode);
+    fd = open(fname, O_RDWR | O_CREAT, mode);
     if (fd < 0) 
         throw std::runtime_error("unable to create db");
     int status = ftruncate(fd, 64 * 1024);
