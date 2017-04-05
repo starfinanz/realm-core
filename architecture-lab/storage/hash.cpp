@@ -26,19 +26,22 @@ uint64_t hash_a_table[8][256];
 uint64_t hash_b_table[8][256];
 
 
-void init_one_hash(std::mt19937_64& rand_gen, uint64_t table[8][256]) {
-    for (int j=0; j<8; ++j)
-        for (int k=0; k<256; ++k)
+void init_one_hash(std::mt19937_64& rand_gen, uint64_t table[8][256])
+{
+    for (int j = 0; j < 8; ++j)
+        for (int k = 0; k < 256; ++k)
             table[j][k] = rand_gen();
 }
 
-void init_hashes() {
+void init_hashes()
+{
     std::mt19937_64 rand_gen;
     init_one_hash(rand_gen, hash_a_table);
     init_one_hash(rand_gen, hash_b_table);
 }
 
-inline uint64_t hash(uint64_t table[8][256], uint64_t key) {
+inline uint64_t hash(uint64_t table[8][256], uint64_t key)
+{
     uint8_t c = key;
     uint64_t res = table[0][c];
     c = key >> 8;
@@ -59,10 +62,12 @@ inline uint64_t hash(uint64_t table[8][256], uint64_t key) {
     return res;
 }
 
-uint64_t hash_a(uint64_t key) {
+uint64_t hash_a(uint64_t key)
+{
     return hash(hash_a_table, key);
 }
 
-uint64_t hash_b(uint64_t key) {
+uint64_t hash_b(uint64_t key)
+{
     return hash(hash_b_table, key);
 }

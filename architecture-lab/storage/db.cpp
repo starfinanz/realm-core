@@ -45,7 +45,8 @@ struct DbImp : public Db {
 };
 
 
-Db& Db::create(const char* fname) {
+Db& Db::create(const char* fname)
+{
     DbImp* res = new DbImp(fname);
     // fixme to do only once. And fixme to be portable across platforms.
     // Or possibly store inside file?
@@ -71,15 +72,17 @@ struct _Versions {
     Ref<_Snapshot> versions[1];
 };
 
-DbImp::DbImp(const char* fname) : fname(fname) {
+DbImp::DbImp(const char* fname)
+    : fname(fname)
+{
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     fd = open(fname, O_RDWR | O_CREAT, mode);
-    if (fd < 0) 
+    if (fd < 0)
         throw std::runtime_error("unable to create db");
     int status = ftruncate(fd, 64 * 1024);
     if (status < 0)
         throw std::runtime_error("unable to create zero page");
-    zero_page = reinterpret_cast<char*>( mmap(0, 64*1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
+    zero_page = reinterpret_cast<char*>(mmap(0, 64 * 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
     if (zero_page == nullptr)
         throw std::runtime_error("unable to map zero page");
     header = reinterpret_cast<_Header*>(zero_page);
@@ -89,7 +92,8 @@ DbImp::DbImp(const char* fname) : fname(fname) {
     header->meta[0].in_file_allocation_point = Memory::chunk_size;
 }
 
-const Snapshot& DbImp::open_snapshot() {
+const Snapshot& DbImp::open_snapshot()
+{
     _Meta* meta = header->meta + header->selector;
     if (is_null(meta->versions))
         throw std::runtime_error("no snapshot in database");
@@ -99,7 +103,8 @@ const Snapshot& DbImp::open_snapshot() {
     return *new SnapshotImpl(mem, v_ptr->versions[0], false);
 }
 
-Snapshot& DbImp::create_changes() {
+Snapshot& DbImp::create_changes()
+{
     _Meta* meta = header->meta + header->selector;
     if (is_null(meta->versions)) {
         _Snapshot* ptr;
@@ -115,19 +120,22 @@ Snapshot& DbImp::create_changes() {
 }
 
 
-void DbImp::release(const Snapshot&& s) {
+void DbImp::release(const Snapshot&& s)
+{
     // ...
     mem.reset_freelists();
 }
 
-void DbImp::abort(Snapshot&& s) {
+void DbImp::abort(Snapshot&& s)
+{
     //.,..
     mem.reset_freelists();
 }
 
-void DbImp::commit(Snapshot&& s) {
+void DbImp::commit(Snapshot&& s)
+{
     _Meta* meta = header->meta + header->selector;
-  
+
     mem.open_for_write(fd, meta->in_file_allocation_point);
     SnapshotImpl* impl = static_cast<SnapshotImpl*>(&s);
     Ref<_Snapshot> res = impl->commit();
@@ -141,9 +149,9 @@ void DbImp::commit(Snapshot&& s) {
     _Meta* new_meta = header->meta + (1 ^ header->selector);
     new_meta->versions = new_version;
     mem.finish_writing(new_meta->logical_file_size, new_meta->in_file_allocation_point); // implies sync
-    msync(zero_page, 64*1024, MS_SYNC);
+    msync(zero_page, 64 * 1024, MS_SYNC);
     header->selector = 1 ^ header->selector;
-    msync(zero_page, 64*1024, MS_SYNC);
+    msync(zero_page, 64 * 1024, MS_SYNC);
     delete impl;
     mem.reset_freelists();
 }

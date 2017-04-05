@@ -23,19 +23,31 @@
 
 /* Typed references
  */
-class DynType {};
+class DynType {
+};
 class Memory;
 
 template <typename T>
 struct Ref {
     uint64_t r;
-    void operator=(const Ref<T>& other) { r = other.r; }
-    Ref(const Ref<T>& other) { r = other.r; }
-    Ref() : r(0) {}
-    void copied_from_file(Memory& mem) { };
-    void copied_to_file(Memory& mem) { 
+    void operator=(const Ref<T>& other)
+    {
+        r = other.r;
+    }
+    Ref(const Ref<T>& other)
+    {
+        r = other.r;
+    }
+    Ref()
+        : r(0)
+    {
+    }
+    void copied_from_file(Memory& mem){};
+    void copied_to_file(Memory& mem)
+    {
         Ref<T> to = T::commit(mem, *this);
-        if (to.r != r) r = to.r;
+        if (to.r != r)
+            r = to.r;
     }
 };
 
@@ -43,16 +55,32 @@ template <>
 struct Ref<DynType> {
     uint64_t r;
     template <typename O>
-    void operator=(const Ref<O>& other) { r = other.r; }
+    void operator=(const Ref<O>& other)
+    {
+        r = other.r;
+    }
     template <typename O>
-    Ref(const Ref<O>& other) { r = other.r; }
-    Ref() : r(0) {}
+    Ref(const Ref<O>& other)
+    {
+        r = other.r;
+    }
+    Ref()
+        : r(0)
+    {
+    }
     template <typename O>
-    inline Ref<O> as() { Ref<O> res; res.r = r; return res; }
+    inline Ref<O> as()
+    {
+        Ref<O> res;
+        res.r = r;
+        return res;
+    }
 };
 
 template <typename T>
-static inline bool is_null(Ref<T> ref) { return ref.r == 0; }
+static inline bool is_null(Ref<T> ref)
+{
+    return ref.r == 0;
+}
 
 #endif
-

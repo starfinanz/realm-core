@@ -30,7 +30,7 @@
 class Memory {
 public:
     static const int chunk_shift = 20;
-    static const int num_chunks = 64*1024;
+    static const int num_chunks = 64 * 1024;
     static const uint64_t chunk_size = 1ULL << chunk_shift;
     static const uint64_t chunk_offset_mask = chunk_size - 1;
     static const int num_size_bins = 500;
@@ -38,50 +38,78 @@ public:
     ~Memory();
     void reset_freelists();
 
-    template <typename T> T* txl(Ref<T> ref) const {
+    template <typename T>
+    T* txl(Ref<T> ref) const
+    {
         return internal_txl<T>(ref.r);
     }
 
-    template <typename T> T* in_file_txl(Ref<T> ref) const {
+    template <typename T>
+    T* in_file_txl(Ref<T> ref) const
+    {
         return reinterpret_cast<T*>(internal_in_file_txl(ref.r));
     }
 
     template <typename T>
-    inline bool is_writable(Ref<T> some_ref) const { return some_ref.r >= scratch_ref_start; }
-
-    template <typename T>
-    inline bool is_valid(Ref<T> some_ref) const { return some_ref.r != 0; }
-
-    template <typename T>
-    Ref<T> alloc(T*& ptr, size_t real_size = sizeof(T)) { 
-        Ref<T> res; res.r = internal_alloc(real_size); ptr = txl(res); 
-        return res; 
+    inline bool is_writable(Ref<T> some_ref) const
+    {
+        return some_ref.r >= scratch_ref_start;
     }
 
     template <typename T>
-    void free(Ref<T> ref, size_t real_size = sizeof(T)) { 
-        internal_free(ref.r, real_size); 
+    inline bool is_valid(Ref<T> some_ref) const
+    {
+        return some_ref.r != 0;
     }
 
     template <typename T>
-    Ref<T> alloc_in_file(T*& ptr, size_t real_size = sizeof(T)) {
+    Ref<T> alloc(T*& ptr, size_t real_size = sizeof(T))
+    {
+        Ref<T> res;
+        res.r = internal_alloc(real_size);
+        ptr = txl(res);
+        return res;
+    }
+
+    template <typename T>
+    void free(Ref<T> ref, size_t real_size = sizeof(T))
+    {
+        internal_free(ref.r, real_size);
+    }
+
+    template <typename T>
+    Ref<T> alloc_in_file(T*& ptr, size_t real_size = sizeof(T))
+    {
         void* p;
-        Ref<T> res; res.r = internal_alloc_in_file(p, real_size);
+        Ref<T> res;
+        res.r = internal_alloc_in_file(p, real_size);
         ptr = reinterpret_cast<T*>(p);
         return res;
     }
 
-    uint64_t get_footprint() { return last_valid_ref - scratch_ref_start; }
-    uint64_t get_recycled() { return recycled; }
-    uint64_t get_freed() { return freed; }
+    uint64_t get_footprint()
+    {
+        return last_valid_ref - scratch_ref_start;
+    }
+    uint64_t get_recycled()
+    {
+        return recycled;
+    }
+    uint64_t get_freed()
+    {
+        return freed;
+    }
     void open_for_write(int fd, uint64_t in_file_allocation_start_ref);
     void finish_writing(uint64_t& file_size, uint64_t& in_file_allocation_point);
     void prepare_mapping(int fd, uint64_t file_size);
+
 private:
     uint64_t internal_alloc_in_file(void*& ptr, size_t real_size);
     uint64_t internal_alloc(size_t real_size);
     void internal_free(uint64_t ref, size_t real_size);
-    template <typename T> T* internal_txl(uint64_t ref) const {
+    template <typename T>
+    T* internal_txl(uint64_t ref) const
+    {
         return reinterpret_cast<T*>(txl_table[ref >> chunk_shift] + (ref & chunk_offset_mask));
     }
 

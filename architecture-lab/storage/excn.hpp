@@ -1,2 +1,3 @@
 
-struct NotFound {};
+struct NotFound {
+};

@@ -25,7 +25,7 @@ struct Table {
     uint64_t key;
 };
 
-template<typename T>
+template <typename T>
 struct Field {
     uint64_t key;
 };

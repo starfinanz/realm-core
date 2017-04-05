@@ -31,7 +31,8 @@ struct _Table;
 
 
 // type used to indicate that a field is a list of T
-template<typename T> struct List {
+template <typename T>
+struct List {
 };
 
 // type used to indicate that a field is a string
@@ -39,16 +40,16 @@ struct String {
 };
 
 // helper for accessing a list
-template<typename T>
+template <typename T>
 struct ListAccessor;
 
 struct Object {
 
     // singular entries
-    template<typename T>
+    template <typename T>
     T operator()(Field<T> f);
 
-    template<typename T>
+    template <typename T>
     void set(Field<T> f, T value);
 
     // overload for strings
@@ -56,7 +57,7 @@ struct Object {
     std::string operator()(Field<String> f);
 
     // lists
-    template<typename T>
+    template <typename T>
     ListAccessor<T> operator()(Field<List<T>> f);
 
     // implementation:
@@ -82,7 +83,7 @@ struct ObjectIterator {
     TreeLeaf* leaf;
 };
 
-template<typename T>
+template <typename T>
 struct ListAccessor {
     Object o;
     Field<List<T>> f;
@@ -96,27 +97,55 @@ struct ListAccessor {
     void wr(uint64_t index, T value);
 
     // not sure about this one:
-    template<typename TFunc>
+    template <typename TFunc>
     void for_each(uint64_t first, uint64_t limit, TFunc func);
 };
 
 // specializations for Table and Row fields
-template<>
+template <>
 struct ListAccessor<Table> {
     ListAccessor<uint64_t> list;
-    uint64_t get_size() { return list.get_size(); }
-    void set_size(uint64_t new_size) { list.set_size(new_size); }
-    Table rd(uint64_t index) { Table t; t.key = list.rd(index); return t; }
-    void wr(uint64_t index, Table value) { list.wr(index, value.key); }
+    uint64_t get_size()
+    {
+        return list.get_size();
+    }
+    void set_size(uint64_t new_size)
+    {
+        list.set_size(new_size);
+    }
+    Table rd(uint64_t index)
+    {
+        Table t;
+        t.key = list.rd(index);
+        return t;
+    }
+    void wr(uint64_t index, Table value)
+    {
+        list.wr(index, value.key);
+    }
 };
 
-template<>
+template <>
 struct ListAccessor<Row> {
     ListAccessor<uint64_t> list;
-    uint64_t get_size() { return list.get_size(); }
-    void set_size(uint64_t new_size) { list.set_size(new_size); }
-    Row rd(uint64_t index) { Row t; t.key = list.rd(index); return t; }
-    void wr(uint64_t index, Row value) { list.wr(index, value.key); }
+    uint64_t get_size()
+    {
+        return list.get_size();
+    }
+    void set_size(uint64_t new_size)
+    {
+        list.set_size(new_size);
+    }
+    Row rd(uint64_t index)
+    {
+        Row t;
+        t.key = list.rd(index);
+        return t;
+    }
+    void wr(uint64_t index, Row value)
+    {
+        list.wr(index, value.key);
+    }
 };
 
 

@@ -25,7 +25,8 @@
 
 #include "db.hpp"
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     const int limit = 3000000;
     const char* fields = "uifdtruuuuUTs";
 
@@ -40,13 +41,13 @@ int main(int argc, char* argv[]) {
     Field<double> field_d = ss.get_field<double>(t, 3);
     Field<Table> field_e = ss.get_field<Table>(t, 4);
     Field<Row> field_f = ss.get_field<Row>(t, 5);
-    Field<uint64_t> field_x0 = ss.get_field<uint64_t>(t,6);
-    Field<uint64_t> field_x1 = ss.get_field<uint64_t>(t,7);
-    Field<uint64_t> field_x2 = ss.get_field<uint64_t>(t,8);
-    Field<uint64_t> field_x3 = ss.get_field<uint64_t>(t,9);
-    Field<List<uint64_t>> field_y = ss.get_field<List<uint64_t>>(t,10);
-    Field<List<Table>> field_t = ss.get_field<List<Table>>(t,11);
-    Field<String> field_s = ss.get_field<String>(t,12);
+    Field<uint64_t> field_x0 = ss.get_field<uint64_t>(t, 6);
+    Field<uint64_t> field_x1 = ss.get_field<uint64_t>(t, 7);
+    Field<uint64_t> field_x2 = ss.get_field<uint64_t>(t, 8);
+    Field<uint64_t> field_x3 = ss.get_field<uint64_t>(t, 9);
+    Field<List<uint64_t>> field_y = ss.get_field<List<uint64_t>>(t, 10);
+    Field<List<Table>> field_t = ss.get_field<List<Table>>(t, 11);
+    Field<String> field_s = ss.get_field<String>(t, 12);
 
     std::cout << "inserting " << limit << " keys..." << std::flush;
     start = std::chrono::high_resolution_clock::now();
@@ -56,7 +57,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Missing a key that should be there: " << key << std::endl;
     }
     end = std::chrono::high_resolution_clock::now();
-    std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
 
     // FIXME: Just a happy go lucky test of lists - expand and put later
@@ -67,8 +68,10 @@ int main(int argc, char* argv[]) {
     la.set_size(10);
     list_sz = la.get_size();
     assert(list_sz == 10);
-    for (unsigned j=0; j<10; ++j) la.wr(j, j*j+j);
-    for (unsigned j=0; j<10; ++j) assert(la.rd(j) == j*j+j);
+    for (unsigned j = 0; j < 10; ++j)
+        la.wr(j, j * j + j);
+    for (unsigned j = 0; j < 10; ++j)
+        assert(la.rd(j) == j * j + j);
     ListAccessor<Table> ta = o(field_t);
     ta.set_size(1);
     ta.wr(0, t);
@@ -79,11 +82,11 @@ int main(int argc, char* argv[]) {
     std::cout << "validating " << limit << " keys not present..." << std::flush;
     start = std::chrono::high_resolution_clock::now();
     for (uint64_t key = 0; key < limit; key++) {
-        if (ss.exists(t, { (key << 1) + 1} ))
+        if (ss.exists(t, {(key << 1) + 1}))
             std::cout << "Found a key that was never inserted: " << key << std::endl;
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
     std::cout << "validating " << limit << " keys present..." << std::flush;
     start = std::chrono::high_resolution_clock::now();
@@ -92,7 +95,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Missing a key that should be there: " << key << std::endl;
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
 
     std::cout << "checking empty/zero default values for " << limit << " keys..." << std::flush;
@@ -101,7 +104,7 @@ int main(int argc, char* argv[]) {
         assert(ss.get(t, {key << 1})(field_a) == 0);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
     ss.print_stat(std::cout);
 
@@ -111,7 +114,7 @@ int main(int argc, char* argv[]) {
         ss.change(t, {key << 1}).set(field_a, key);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
 
     std::cout << "checking values for " << limit << " keys..." << std::flush;
@@ -120,7 +123,7 @@ int main(int argc, char* argv[]) {
         assert(ss.get(t, {key << 1})(field_a) == key);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
 
     std::cout << "Multiple writes to same object and field" << std::flush;
@@ -129,7 +132,7 @@ int main(int argc, char* argv[]) {
         ss.change(t, {0}).set(field_b, -1L);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / 100000;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / 100000;
     std::cout << "   ...done in " << ns.count() << " nsecs/write" << std::endl;
 
     std::cout << "Multiple reads from same object and field" << std::flush;
@@ -138,19 +141,18 @@ int main(int argc, char* argv[]) {
         assert(ss.get(t, {0})(field_b) == -1);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / 100000;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / 100000;
     std::cout << "   ...done in " << ns.count() << " nsecs/read" << std::endl;
     std::cout << "Preparing, please hold..." << std::flush;
     // priming (to create all relevant arrays)
     int count = 0; // count all entries satisfying search criteria used later
     int count2 = 0;
-    auto query = [&](Object& o) 
-        { 
-            return o(field_x0) < 1000 && o(field_x1) < 1000 && o(field_x2) < 1000 && o(field_x3) < 1000;
-        };
+    auto query = [&](Object& o) {
+        return o(field_x0) < 1000 && o(field_x1) < 1000 && o(field_x2) < 1000 && o(field_x3) < 1000;
+    };
 
-    for (uint64_t key = 0; key < limit; key ++) {
-        auto o = ss.change(t, { key << 1 });
+    for (uint64_t key = 0; key < limit; key++) {
+        auto o = ss.change(t, {key << 1});
         o.set(field_b, 42L);
         o.set(field_c, float(1.0));
         o.set(field_d, 1.0);
@@ -168,8 +170,10 @@ int main(int argc, char* argv[]) {
         assert(o(field_x1) == b);
         assert(o(field_x2) == c);
         assert(o(field_x3) == d);
-        if (a < 1000 && b < 1000 && c < 1000 && d < 1000) count++;
-        if (query(o)) count2++;
+        if (a < 1000 && b < 1000 && c < 1000 && d < 1000)
+            count++;
+        if (query(o))
+            count2++;
     }
     std::cout << "Later search should find " << count << " elements" << std::endl;
     assert(count == count2);
@@ -177,7 +181,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Writing to different fields of same object" << std::flush;
     start = std::chrono::high_resolution_clock::now();
     for (uint64_t key = 0; key < limit; key++) {
-        auto o = ss.change(t, { key << 1 });
+        auto o = ss.change(t, {key << 1});
         o.set(field_b, 1L);
         o.set(field_c, float(0.6 * key));
         o.set(field_d, 0.7 * key);
@@ -185,7 +189,7 @@ int main(int argc, char* argv[]) {
         o.set(field_f, {key + 43});
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / 5 / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / 5 / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/write" << std::endl;
 
     count2 = 0;
@@ -198,10 +202,11 @@ int main(int argc, char* argv[]) {
         assert(o(field_d) - 0.7 * key < 0.00001);
         assert(o(field_e).key == key + 12);
         assert(o(field_f).key == key + 43);
-        if (query(o)) count2++;
+        if (query(o))
+            count2++;
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / 9 / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / 9 / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/read";
     std::cout << "   ...with search finding " << count2 << std::endl << std::endl;
 
@@ -210,7 +215,7 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     db.commit(std::move(ss));
     end = std::chrono::high_resolution_clock::now();
-    std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+    std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "   ...done in " << ms.count() << " msecs" << std::endl << std::endl;
 
     const Snapshot& s2 = db.open_snapshot();
@@ -219,7 +224,8 @@ int main(int argc, char* argv[]) {
         ListAccessor<uint64_t> la = o(field_y);
         uint64_t list_sz = la.get_size();
         assert(list_sz == 10);
-        for (unsigned j=0; j<10; ++j) assert(la.rd(j) == j*j+j);
+        for (unsigned j = 0; j < 10; ++j)
+            assert(la.rd(j) == j * j + j);
         std::string s = o(field_s);
         assert(s == "dette er en streng");
     }
@@ -229,7 +235,7 @@ int main(int argc, char* argv[]) {
         assert(s2.get(t, {key << 1})(field_a) == key);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
     db.release(std::move(s2));
 
@@ -239,9 +245,12 @@ int main(int argc, char* argv[]) {
         ListAccessor<uint64_t> la = o(field_y);
         uint64_t list_sz = la.get_size();
         assert(list_sz == 10);
-        for (unsigned j=0; j<10; ++j) assert(la.rd(j) == j*j+j);
-        for (unsigned j=0; j<10; ++j) la.wr(j, j*j-j);
-        for (unsigned j=0; j<10; ++j) assert(la.rd(j) == j*j-j);
+        for (unsigned j = 0; j < 10; ++j)
+            assert(la.rd(j) == j * j + j);
+        for (unsigned j = 0; j < 10; ++j)
+            la.wr(j, j * j - j);
+        for (unsigned j = 0; j < 10; ++j)
+            assert(la.rd(j) == j * j - j);
     }
     std::cout << "setting values for " << limit << " keys..." << std::flush;
     start = std::chrono::high_resolution_clock::now();
@@ -249,7 +258,7 @@ int main(int argc, char* argv[]) {
         s3.change(t, {key << 1}).set(field_a, key + 47);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl << std::endl;
 
     ss.print_stat(std::cout);
@@ -257,7 +266,7 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     db.commit(std::move(s3));
     end = std::chrono::high_resolution_clock::now();
-    ms = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+    ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "   ...done in " << ms.count() << " msecs" << std::endl << std::endl;
 
     const Snapshot& s4 = db.open_snapshot();
@@ -266,7 +275,8 @@ int main(int argc, char* argv[]) {
         ListAccessor<uint64_t> la = o(field_y);
         uint64_t list_sz = la.get_size();
         assert(list_sz == 10);
-        for (unsigned j=0; j<10; ++j) assert(la.rd(j) == j*j-j);
+        for (unsigned j = 0; j < 10; ++j)
+            assert(la.rd(j) == j * j - j);
     }
     std::cout << "checking values (after commit, from file) for " << limit << " keys..." << std::flush;
     start = std::chrono::high_resolution_clock::now();
@@ -274,7 +284,7 @@ int main(int argc, char* argv[]) {
         assert(s4.get(t, {key << 1})(field_a) == key + 47);
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...done in " << ns.count() << " nsecs/key" << std::endl;
 
     count2 = 0;
@@ -282,27 +292,27 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     for (uint64_t key = 0; key < limit; key++) {
         auto o = s4.get(t, {key << 1});
-        if (query(o)) count2++;
+        if (query(o))
+            count2++;
     }
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ...found " << count2 << " elements in " << ns.count() << " nsecs/element" << std::endl;
 
-    auto job = [&](int partitions, int partition_number, std::vector<Row>* results) 
-        {
-            s4.for_each_partition(partitions, partition_number, t, [&](Object& o) {
-                    if (query(o)) {
-                        results->push_back(o.r);
-                    }
-                });
-        };
+    auto job = [&](int partitions, int partition_number, std::vector<Row>* results) {
+        s4.for_each_partition(partitions, partition_number, t, [&](Object& o) {
+            if (query(o)) {
+                results->push_back(o.r);
+            }
+        });
+    };
 
     std::cout << "searching with for_each (4 fields) for " << limit << " keys..." << std::flush;
     start = std::chrono::high_resolution_clock::now();
     std::vector<Row> results;
-    job(1,0,&results);
+    job(1, 0, &results);
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
     std::cout << "   ... found " << results.size() << " elements in " << ns.count() << " nsecs/element" << std::endl;
 
     std::cout << "searching in parallel (4 threads) for " << limit << " keys..." << std::flush;
@@ -324,7 +334,7 @@ int main(int argc, char* argv[]) {
         T2.join();
         T3.join();
         end = std::chrono::high_resolution_clock::now();
-        ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / limit;
+        ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / limit;
         count2 = res0.size() + res1.size() + res2.size() + res3.size();
         std::cout << "   ...finding " << count2 << " elements in " << ns.count() << " nsecs/element" << std::endl;
     }
@@ -342,7 +352,7 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     job2(&results);
     end = std::chrono::high_resolution_clock::now();
-    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start) / count;
+    ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start) / count;
     std::cout << "   ...done in " << ns.count() << " nsecs/element" << std::endl << std::endl;
 
     ss.print_stat(std::cout);
@@ -350,7 +360,6 @@ int main(int argc, char* argv[]) {
     start = std::chrono::high_resolution_clock::now();
     db.commit(std::move(s5));
     end = std::chrono::high_resolution_clock::now();
-    ms = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+    ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "   ...done in " << ms.count() << " msecs" << std::endl << std::endl;
-
 }

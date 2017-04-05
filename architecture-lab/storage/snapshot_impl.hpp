@@ -44,7 +44,7 @@ public:
     Table get_layout_dir();
 
     // fields and their definitions
-    template<typename T>
+    template <typename T>
     Field<T> get_field(Table t, int number) const; // add field name instead of number
 
     // manipulate rows
@@ -64,11 +64,12 @@ public:
     // hooks for control, used by DbImpl.
     Ref<_Snapshot> commit();
     void cow();
-    virtual ~SnapshotImpl() {};
+    virtual ~SnapshotImpl(){};
 
     // hooks used by Object
     Memory& refresh(Object* o) const;
     Memory& change(Object* o);
+
 private:
     Memory& mem;
     Ref<_Snapshot> m_top;

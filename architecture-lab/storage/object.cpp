@@ -20,4 +20,3 @@
 
 #include "object.hpp"
 #include "snapshot_impl.hpp"
-
