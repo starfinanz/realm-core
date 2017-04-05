@@ -17,14 +17,15 @@ SRCS = \
   object.cpp \
 
 TEST_SRCS = \
-  main.cpp
+  main.cpp \
+  test_perf.cpp
 
 OBJS = $(SRCS:%.cpp=%.o)
 DEPS = $(SRCS:%.cpp=%.d)
 TEST_OBJS = $(TEST_SRCS:%.cpp=%.o)
 TEST_DEPS = $(TEST_SRCS:%.cpp=%.d)
 
-all: test perf lib
+all: test
 
 run: test
 	./test
@@ -51,7 +52,8 @@ clean:
 	rm -f $(DEPS)
 	rm -f $(TEST_OBJS)
 	rm -f $(TEST_DEPS)
-	rm -f ./test
-	rm -f ./testing.core2
+	rm -f libstorage.a
+	rm -f ./test ./test_perf
+	rm -f ./testing.core2 ./perf.core2
 
 -include $(DEPS)
