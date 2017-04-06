@@ -1,0 +1,11 @@
+.cproject
+.project
+.settings
+
+*.o
+*.d
+*.a
+
+test*
+
+*.core2
