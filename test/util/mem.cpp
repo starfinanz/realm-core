@@ -33,7 +33,7 @@
 #include "mem.hpp"
 
 
-#ifdef _WIN32
+#if defined(_WIN32) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 
 namespace {
 
@@ -130,7 +130,9 @@ namespace test_util {
 
 size_t get_mem_usage()
 {
-#if defined _WIN32
+#if defined(REALM_UWP)
+	return 0;
+#elif defined _WIN32
 
     // FIXME: Does this return virtual size or resident set size? What
     // we need is the virtual size, i.e., we want to include that

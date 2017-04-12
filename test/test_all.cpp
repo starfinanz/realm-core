@@ -60,6 +60,10 @@
 #include <fcntl.h>
 #endif
 
+#ifdef REALM_UWP
+static inline char* getenv(const char*) { return nullptr; }
+#endif
+
 using namespace realm;
 using namespace realm::test_util;
 using namespace realm::test_util::unit_test;
@@ -414,7 +418,7 @@ bool run_tests(util::Logger* logger)
     // Set up reporter
     std::ofstream xml_file;
     bool xml;
-#if REALM_MOBILE
+#if REALM_MOBILE || defined(WIN32)
     xml = true;
 #else
     const char* xml_str = getenv("UNITTEST_XML");
@@ -469,7 +473,8 @@ bool run_tests(util::Logger* logger)
             std::ostringstream out;
             out.imbue(std::locale::classic());
             time_t now = time(nullptr);
-            tm tm = *localtime(&now);
+            tm tm;
+            localtime_s(&tm, &now);
             out << "test_logs_";
             put_time(out, tm, "%Y%m%d_%H%M%S");
             std::string dir_path = get_test_path_prefix() + out.str();
@@ -517,15 +522,6 @@ int test_all(int argc, char* argv[], util::Logger* logger)
 
     bool no_error_exit_staus = 2 <= argc && strcmp(argv[1], "--no-error-exitcode") == 0;
 
-#ifdef _MSC_VER
-    // we're in /build/ on Windows if we're in the Visual Studio IDE. Some Github clients on Windows will interfere
-    // with the .realm files created by unit tests, so we need to make a special directory for them and add it to
-    // .gitignore
-    util::try_make_dir("../test/tmp");
-    set_test_resource_path("../test/");
-    set_test_path_prefix("../test/tmp/");
-#endif
-
     set_random_seed();
     set_always_encrypt();
 
@@ -547,10 +543,6 @@ int test_all(int argc, char* argv[], util::Logger* logger)
             success = false;
         }
     }
-
-#ifdef _MSC_VER
-    getchar(); // wait for key
-#endif
 
     return success || no_error_exit_staus ? EXIT_SUCCESS : EXIT_FAILURE;
 }

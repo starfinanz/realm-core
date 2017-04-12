@@ -164,13 +164,8 @@ ptw32_callUserDestroyRoutines (pthread_t thread)
 	       */
 	      k = assoc->key;
 	      destructor = k->destructor;
-#if REALM_UWP
-          value = FlsGetValue(k->key);
-          FlsSetValue(k->key, NULL);
-#else
           value = TlsGetValue(k->key);
           TlsSetValue(k->key, NULL);
-#endif
 	      // Every assoc->key exists and has a destructor
 	      if (value != NULL && iterations <= PTHREAD_DESTRUCTOR_ITERATIONS)
 		{

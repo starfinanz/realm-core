@@ -50,9 +50,16 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
 set(CMAKE_DEBUG_POSTFIX "-dbg")
 set(CMAKE_MINSIZEDEBUG_POSTFIX "-dbg")
 
-# Add REALM_UWP=1 to compile with Windows UWP support
-if(WINDOWS_STORE AND CMAKE_SYSTEM_VERSION STREQUAL 10.0)
-    add_definitions(-DREALM_UWP=1 -D_SCL_SECURE_NO_WARNINGS)
+if(WINDOWS_STORE)
+    add_definitions(-DREALM_UWP=1)
+endif()
+
+if(MSVC)
+	add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
+	# /bigobj is required for windows builds because of the size of
+    # some object files (bptree.hpp)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /bigobj")
 endif()
 
 # Platform-specific build configuration

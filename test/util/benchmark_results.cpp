@@ -27,8 +27,6 @@
 #include <cmath>
 #include <cfloat> // DBL_MIN, DBL_MAX
 
-#include <unistd.h> // link, unlink
-
 #include <realm/util/file.hpp>
 
 #include "timer.hpp"
@@ -331,9 +329,8 @@ void BenchmarkResults::try_load_baseline_results()
 void BenchmarkResults::save_results()
 {
     time_t now = time(nullptr);
-    localtime(&now);
     struct tm local;
-    localtime_r(&now, &local);
+    localtime_s(&local, &now);
     std::ostringstream name_out;
     name_out << m_results_file_stem << ".";
     // Format: YYYYMMDD_hhmmss;
@@ -367,13 +364,11 @@ void BenchmarkResults::save_results()
     std::string baseline_file = m_results_file_stem;
     std::string latest_csv_file = m_results_file_stem + ".latest.csv";
     baseline_file += ".baseline";
+
     if (!util::File::exists(baseline_file)) {
-        int r = link(name.c_str(), baseline_file.c_str());
-        static_cast<void>(r); // FIXME: Display if error
+        util::File::copy(name, baseline_file);
     }
-    if (util::File::exists(latest_csv_file)) {
-        (void)unlink(latest_csv_file.c_str());
-    }
-    int r = link(csv_name.c_str(), latest_csv_file.c_str());
-    static_cast<void>(r); // FIXME: Display if error
+
+    util::File::try_remove(latest_csv_file);
+    util::File::copy(csv_name, latest_csv_file);
 }
