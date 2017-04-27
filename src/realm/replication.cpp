@@ -216,6 +216,11 @@ public:
 
     bool set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx, size_t, _impl::Instruction)
     {
+//        std::cerr << m_table->get_name() << " ["<<m_xxx_tab_ndx<<"]   "<<m_table->get_column_name(col_ndx)<<" ["<<col_ndx<<"]\n";
+/*
+        if (true)
+            return true;
+*/
         if (REALM_LIKELY(REALM_COVER_ALWAYS(check_set_cell(col_ndx, row_ndx)))) {
             if (target_row_ndx == realm::npos) {
                 log("table->nullify_link(%1, %2);", col_ndx, row_ndx); // Throws
@@ -339,6 +344,7 @@ public:
             if (REALM_UNLIKELY(REALM_COVER_NEVER(row_ndx >= m_table->size())))
                 return false;
             log("table = table->get_subtable(%1, %2);", col_ndx, row_ndx); // Throws
+            m_xxx_tab_ndx = group_level_ndx;
             DataType type = m_table->get_column_type(col_ndx);
             switch (type) {
                 case type_Table:
@@ -418,6 +424,8 @@ public:
             if (REALM_LIKELY(REALM_COVER_ALWAYS(col_ndx <= m_desc->get_column_count()))) {
                 log("desc->insert_column(%1, %2, \"%3\", %4);", col_ndx, data_type_to_str(type), name,
                     nullable); // Throws
+                if (col_ndx != m_desc->get_column_count())
+                    std::cerr << "@-COL-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-COL-1-@\n";
                 LinkTargetInfo invalid_link;
                 using tf = _impl::TableFriend;
                 tf::insert_column_unless_exists(*m_desc, col_ndx, type, name, invalid_link, nullable); // Throws
@@ -434,6 +442,8 @@ public:
             if (REALM_LIKELY(REALM_COVER_ALWAYS(col_ndx <= m_desc->get_column_count()))) {
                 log("desc->insert_column_link(%1, %2, \"%3\", LinkTargetInfo(group->get_table(%4), %5));", col_ndx,
                     data_type_to_str(type), name, link_target_table_ndx, backlink_col_ndx); // Throws
+                if (col_ndx != m_desc->get_column_count())
+                    std::cerr << "@-COL-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-COL-2-@\n";
                 using gf = _impl::GroupFriend;
                 using tf = _impl::TableFriend;
                 Table* link_target_table = &gf::get_table(m_group, link_target_table_ndx); // Throws
@@ -447,6 +457,7 @@ public:
 
     bool erase_column(size_t col_ndx)
     {
+        std::cerr << "@-COL-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-COL-3-@\n";
         if (REALM_LIKELY(REALM_COVER_ALWAYS(m_desc))) {
             if (REALM_LIKELY(REALM_COVER_ALWAYS(col_ndx < m_desc->get_column_count()))) {
                 log("desc->remove_column(%1);", col_ndx); // Throws
@@ -460,6 +471,7 @@ public:
 
     bool erase_link_column(size_t col_ndx, size_t, size_t)
     {
+        std::cerr << "@-COL-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-COL-4-@\n";
         if (REALM_LIKELY(REALM_COVER_ALWAYS(m_desc))) {
             if (REALM_LIKELY(REALM_COVER_ALWAYS(col_ndx < m_desc->get_column_count()))) {
                 log("desc->remove_column(%1);", col_ndx); // Throws
@@ -473,6 +485,7 @@ public:
 
     bool rename_column(size_t col_ndx, StringData name)
     {
+        std::cerr << "@-COL-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-COL-5-@\n";
         if (REALM_LIKELY(REALM_COVER_ALWAYS(m_desc))) {
             if (REALM_LIKELY(REALM_COVER_ALWAYS(col_ndx < m_desc->get_column_count()))) {
                 log("desc->rename_column(%1, \"%2\");", col_ndx, name); // Throws
@@ -486,6 +499,7 @@ public:
 
     bool move_column(size_t col_ndx_1, size_t col_ndx_2)
     {
+        std::cerr << "@-COL-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-COL-6-@\n";
         if (REALM_LIKELY(REALM_COVER_ALWAYS(m_desc))) {
             size_t column_count = m_desc->get_column_count();
             static_cast<void>(column_count);
@@ -524,6 +538,8 @@ public:
 
     bool insert_group_level_table(size_t table_ndx, size_t prior_num_tables, StringData name)
     {
+        if (table_ndx !=prior_num_tables )
+            std::cerr << "@-TAB-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-TAB-1-@\n";
         static_cast<void>(prior_num_tables);
         if (REALM_UNLIKELY(REALM_COVER_NEVER(prior_num_tables != m_group.size())))
             return false;
@@ -540,6 +556,7 @@ public:
 
     bool erase_group_level_table(size_t table_ndx, size_t num_tables) noexcept
     {
+        std::cerr << "@-TAB-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-TAB-2-@\n";
         static_cast<void>(num_tables);
         if (REALM_UNLIKELY(REALM_COVER_NEVER(num_tables != m_group.size())))
             return false;
@@ -565,6 +582,7 @@ public:
 
     bool move_group_level_table(size_t from_table_ndx, size_t to_table_ndx) noexcept
     {
+        std::cerr << "@-TAB-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-TAB-3-@\n";
         if (REALM_UNLIKELY(REALM_COVER_NEVER(from_table_ndx == to_table_ndx)))
             return false;
         if (REALM_UNLIKELY(REALM_COVER_NEVER(from_table_ndx >= m_group.size())))
@@ -603,6 +621,7 @@ public:
         log("link_list = table->get_link_list(%1, %2);", col_ndx, row_ndx); // Throws
         m_desc.reset();
         m_link_list = m_table->get_linklist(col_ndx, row_ndx); // Throws
+        m_xxx_col_ndx = col_ndx;
         return true;
     }
 
@@ -610,6 +629,10 @@ public:
     {
         if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_link_list)))
             return false;
+        if (true || m_xxx_tab_ndx == 0 && m_xxx_col_ndx == 11) {
+//            std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-1\n";
+            return true;
+        }
         if (REALM_UNLIKELY(REALM_COVER_NEVER(link_ndx >= m_link_list->size())))
             return false;
         if (REALM_UNLIKELY(REALM_COVER_NEVER(prior_size != m_link_list->size())))
@@ -625,11 +648,16 @@ public:
     {
         if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_link_list)))
             return false;
+        if (true || m_xxx_tab_ndx == 0 && m_xxx_col_ndx == 11) {
+//            std::cerr << "<s>";
+            return true;
+        }
         if (REALM_UNLIKELY(REALM_COVER_NEVER(link_ndx > m_link_list->size())))
             return false;
         if (REALM_UNLIKELY(REALM_COVER_NEVER(prior_size != m_link_list->size())))
             return false;
         static_cast<void>(prior_size);
+//        std::cerr << m_table->get_name() << " ["<<m_xxx_tab_ndx<<"]   "<<m_table->get_column_name(m_xxx_col_ndx)<<" ["<<m_xxx_col_ndx<<"]\n";
         log("link_list->insert(%1, %2);", link_ndx, value); // Throws
         m_link_list->insert(link_ndx, value);               // Throws
         return true;
@@ -639,6 +667,10 @@ public:
     {
         if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_link_list)))
             return false;
+        if (true || m_xxx_tab_ndx == 0 && m_xxx_col_ndx == 11) {
+//            std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-2\n";
+            return true;
+        }
         if (REALM_UNLIKELY(REALM_COVER_NEVER(from_link_ndx == to_link_ndx)))
             return false;
         size_t num_links = m_link_list->size();
@@ -656,6 +688,10 @@ public:
     {
         if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_link_list)))
             return false;
+        if (true || m_xxx_tab_ndx == 0 && m_xxx_col_ndx == 11) {
+//            std::cerr << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-3\n";
+            return true;
+        }
         size_t num_links = m_link_list->size();
         static_cast<void>(num_links);
         if (REALM_UNLIKELY(REALM_COVER_NEVER(link_ndx_1 >= num_links)))
@@ -671,6 +707,10 @@ public:
     {
         if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_link_list)))
             return false;
+        if (true || m_xxx_tab_ndx == 0 && m_xxx_col_ndx == 11) {
+//            std::cerr << "<t>";
+            return true;
+        }
         if (REALM_UNLIKELY(REALM_COVER_NEVER(link_ndx >= m_link_list->size())))
             return false;
         if (REALM_UNLIKELY(REALM_COVER_NEVER(prior_size != m_link_list->size())))
@@ -686,6 +726,10 @@ public:
     {
         if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_link_list)))
             return false;
+        if (true || m_xxx_tab_ndx == 0 && m_xxx_col_ndx == 11) {
+//            std::cerr << "<u>";
+            return true;
+        }
         log("link_list->clear();"); // Throws
         typedef _impl::LinkListFriend llf;
         llf::do_clear(*m_link_list); // Throws
@@ -699,6 +743,10 @@ public:
 
     bool link_list_nullify(size_t link_ndx, size_t prior_size)
     {
+        if (true || m_xxx_tab_ndx == 0 && m_xxx_col_ndx == 11) {
+//            std::cerr << "<v>";
+            return true;
+        }
         return link_list_erase(link_ndx, prior_size);
     }
 
@@ -708,6 +756,7 @@ private:
     DescriptorRef m_desc;
     LinkViewRef m_link_list;
     util::Logger* m_logger = nullptr;
+    std::size_t m_xxx_tab_ndx = 0, m_xxx_col_ndx = 0;
 
     bool check_set_cell(size_t col_ndx, size_t row_ndx) noexcept
     {
