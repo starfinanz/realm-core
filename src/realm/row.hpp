@@ -369,6 +369,40 @@ private:
 typedef BasicRow<Table> Row;
 typedef BasicRow<const Table> ConstRow;
 
+struct Key {
+    explicit Key(int64_t val)
+        : value(val)
+    {
+    }
+    int64_t value;
+};
+
+// 'Object' would have been a better name, but it clashes with a class in ObjectStore
+class Obj {
+public:
+    Obj(Table& table, Key key);
+
+    template <typename U>
+    U get(size_t col_ndx) const noexcept
+    {
+        return m_row.get<U>(col_ndx);
+    }
+
+    template <typename U>
+    void set(size_t col_ndx, U&& value, bool is_default = false)
+    {
+        m_row.set<U>(col_ndx, std::forward<U>(value), is_default);
+    }
+
+private:
+    friend class Table;
+    Row m_row;
+
+    Obj(BasicRowExpr<Table> row)
+        : m_row(row)
+    {
+    }
+};
 
 // Implementation
 

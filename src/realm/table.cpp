@@ -501,7 +501,7 @@ void Table::init(ref_type top_ref, ArrayParent* parent, size_t ndx_in_parent, bo
     // Load from allocated memory
     m_top.set_parent(parent, ndx_in_parent);
     m_top.init_from_ref(top_ref);
-    REALM_ASSERT_3(m_top.size(), ==, 2);
+    REALM_ASSERT_7(m_top.size(), >=, 2, &&, m_top.size(), <=, 4);
 
     size_t spec_ndx_in_parent = 0;
     m_spec.set_parent(&m_top, spec_ndx_in_parent);
@@ -509,6 +509,12 @@ void Table::init(ref_type top_ref, ArrayParent* parent, size_t ndx_in_parent, bo
     size_t columns_ndx_in_parent = 1;
     m_columns.set_parent(&m_top, columns_ndx_in_parent);
     m_columns.init_from_parent();
+
+    if (m_top.size() > 2) {
+        size_t keys_ndx_in_parent = 2;
+        m_keys.set_parent(&m_top, keys_ndx_in_parent);
+        m_keys.init_from_parent();
+    }
 
     size_t num_cols = m_spec.get_column_count();
     m_cols.resize(num_cols); // Throws
@@ -4804,6 +4810,9 @@ void Table::update_from_parent(size_t old_baseline) noexcept
             col->update_from_parent(old_baseline);
         }
     }
+    if (m_keys.is_attached()) {
+        m_keys.update_from_parent(old_baseline);
+    }
 }
 
 
@@ -6115,7 +6124,9 @@ void Table::verify() const
         m_top.verify();
     m_columns.verify();
     m_spec.verify();
-
+    if (m_keys.is_attached()) {
+        m_keys.verify();
+    }
 
     // Verify row accessors
     {
@@ -6378,6 +6389,65 @@ void Table::dump_node_structure(std::ostream& out, int level) const
         const ColumnBase& col = get_column_base(i);
         col.do_dump_node_structure(out, level + 2);
     }
+}
+
+void Table::add_column_key(size_t from_ndx)
+{
+    REALM_ASSERT(!m_keys.is_attached());
+    ref_type ref = IntegerColumn::create(get_alloc());
+    if (m_top.size() == 2) {
+        m_top.add(from_ref(ref));
+    }
+    else {
+        m_top.set(2, from_ref(ref));
+    }
+    m_keys.set_parent(&m_top, 2);
+    m_keys.init_from_parent();
+
+    if (from_ndx) {
+    }
+}
+
+Key Table::add_object(util::Optional<realm::Key>)
+{
+    size_t row_ndx = add_empty_row();
+    if (m_keys.size() > row_ndx) {
+        size_t row_to_swap = m_keys.get(row_ndx);
+        REALM_ASSERT_DEBUG(size_t(m_keys.get(row_to_swap)) == row_ndx);
+        m_keys.set(row_to_swap, row_to_swap);
+        m_keys.set(row_ndx, row_ndx);
+        this->swap_rows(row_ndx, row_to_swap);
+        row_ndx = row_to_swap;
+    }
+    else {
+        m_keys.add(row_ndx);
+    }
+
+    return Key(row_ndx);
+}
+
+void Table::remove_object(Key key)
+{
+    REALM_ASSERT_DEBUG(size_t(key.value) < m_keys.size());
+    int64_t row_to_remove = m_keys.get(size_t(key.value));
+    if (row_to_remove == key.value) {
+        move_last_over(row_to_remove);
+        size_t last_row = size();
+        m_keys.set(last_row, row_to_remove);
+        m_keys.set(row_to_remove, last_row);
+    }
+}
+
+Obj Table::get_object(Key key)
+{
+    if (size_t(key.value) >= m_keys.size()) {
+        throw IllegalKey();
+    }
+    int64_t row = m_keys.get(size_t(key.value));
+    if (size_t(row) >= size()) {
+        throw IllegalKey();
+    }
+    return Obj(get(row));
 }
 
 #endif // LCOV_EXCL_STOP ignore debug functions

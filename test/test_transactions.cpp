@@ -748,5 +748,47 @@ TEST(LangBindHelper_RollbackLinkInsert)
     CHECK_EQUAL(g.get_table(1)->get_link_target(0), g.get_table(0));
 }
 
+TEST(Transactions_KeyColumn)
+{
+    SHARED_GROUP_TEST_PATH(path);
+    std::unique_ptr<Replication> hist_w(make_in_realm_history(path));
+    SharedGroup sg_w(*hist_w, SharedGroupOptions(crypt_key()));
+    WriteTransaction wt(sg_w);
+    Group& g = wt.get_group();
+
+    TableRef t = g.insert_table(0, "t0");
+    t->add_column(type_String, "strings");
+    t->add_column_key();
+    Key k1 = t->add_object();
+    t->add_object();
+    Key k3 = t->add_object();
+
+    LangBindHelper::commit_and_continue_as_read(sg_w);
+    LangBindHelper::promote_to_write(sg_w);
+
+    g.verify();
+    {
+        Obj o = g.get_table(0)->get_object(k3);
+        o.set<StringData>(0, "Hello");
+        g.get_table(0)->remove_object(k1);
+    }
+
+    LangBindHelper::commit_and_continue_as_read(sg_w);
+    LangBindHelper::promote_to_write(sg_w);
+
+    g.verify();
+    {
+        Obj o = g.get_table(0)->get_object(k3);
+        CHECK_EQUAL(o.get<StringData>(0), "Hello");
+        bool ok = false;
+        try {
+            Obj x = g.get_table(0)->get_object(k1);
+        }
+        catch (const IllegalKey&) {
+            ok = true;
+        }
+        CHECK(ok);
+    }
+}
 
 #endif // TEST_TRANSACTIONS

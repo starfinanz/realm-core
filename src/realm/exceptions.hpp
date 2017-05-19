@@ -33,6 +33,13 @@ public:
 };
 
 
+/// Thrown by various functions to indicate that a specified key is not valid
+class IllegalKey : public std::exception {
+public:
+    const char* what() const noexcept override;
+};
+
+
 /// Thrown by various functions to indicate that a specified table name is
 /// already in use.
 class TableNameInUse : public std::exception {
@@ -228,6 +235,11 @@ private:
 inline const char* NoSuchTable::what() const noexcept
 {
     return "No such table exists";
+}
+
+inline const char* IllegalKey::what() const noexcept
+{
+    return "The key is illegal";
 }
 
 inline const char* TableNameInUse::what() const noexcept
