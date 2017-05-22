@@ -384,6 +384,10 @@ public:
     void remove_object(Key key);
     void clear();
     void swap_rows(size_t row_ndx_1, size_t row_ndx_2);
+    class Iterator;
+    Iterator begin();
+    Iterator end();
+
     //@}
 
     /// Replaces all links to \a row_ndx with links to \a new_row_ndx.
@@ -1474,6 +1478,45 @@ private:
     friend class LinkMap;
     friend class LinkView;
     friend class Group;
+};
+
+class Table::Iterator {
+public:
+    typedef std::bidirectional_iterator_tag iterator_category;
+    typedef Obj value_type;
+    typedef ptrdiff_t difference_type;
+    typedef Obj* pointer;
+    typedef Obj& reference;
+
+    Iterator(Table& t, size_t ndx)
+        : m_table(t)
+        , m_row_ndx(ndx)
+    {
+    }
+    Obj operator*()
+    {
+        BasicRowExpr<Table> row(&m_table, m_row_ndx);
+        return Obj(row);
+    }
+    Iterator& operator++()
+    {
+        ++m_row_ndx;
+        return *this;
+    }
+    Iterator operator++(int)
+    {
+        Iterator tmp(*this);
+        ++m_row_ndx;
+        return tmp;
+    }
+    bool operator!=(const Iterator& rhs) const
+    {
+        return m_row_ndx != rhs.m_row_ndx;
+    }
+
+private:
+    Table& m_table;
+    size_t m_row_ndx;
 };
 
 class Table::Parent : public ArrayParent {

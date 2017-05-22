@@ -7869,6 +7869,14 @@ TEST(Table_KeyColumn)
         Obj o = t.get_object(k3);
         CHECK_EQUAL(o.get<StringData>(0), "hello");
     }
+    for (int i = 0; i < 10; i++) {
+        t.add_object();
+    }
+    int i = 100;
+    for (Obj o : t) {
+        std::string str = util::to_string(i++);
+        o.set(0, StringData(str));
+    }
 }
 
 #endif // TEST_TABLE

@@ -2289,8 +2289,8 @@ void Table::batch_erase_rows(const IntegerColumn& row_indexes, bool is_move_last
             state.rows.push_back(row); // Throws
         }
     }
-    sort(begin(state.rows), end(state.rows));
-    state.rows.erase(unique(begin(state.rows), end(state.rows)), end(state.rows));
+    sort(std::begin(state.rows), std::end(state.rows));
+    state.rows.erase(unique(std::begin(state.rows), std::end(state.rows)), std::end(state.rows));
 
     if (Group* g = get_parent_group())
         state.track_link_nullifications = g->has_cascade_notification_handler();
@@ -6448,6 +6448,16 @@ Obj Table::get_object(Key key)
         throw IllegalKey();
     }
     return Obj(get(row));
+}
+
+Table::Iterator Table::begin()
+{
+    return Iterator(*this, 0);
+}
+
+Table::Iterator Table::end()
+{
+    return Iterator(*this, size());
 }
 
 #endif // LCOV_EXCL_STOP ignore debug functions
