@@ -6447,17 +6447,17 @@ Obj Table::get_object(Key key)
     if (size_t(row) >= size()) {
         throw IllegalKey();
     }
-    return Obj(get(row));
+    return Obj(this, row);
 }
 
 Table::Iterator Table::begin()
 {
-    return Iterator(*this, 0);
+    return Iterator(this, 0);
 }
 
 Table::Iterator Table::end()
 {
-    return Iterator(*this, size());
+    return Iterator(this, size());
 }
 
 #endif // LCOV_EXCL_STOP ignore debug functions

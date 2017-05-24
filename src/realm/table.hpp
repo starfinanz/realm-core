@@ -64,6 +64,50 @@ struct Link {
 typedef Link LinkList;
 typedef Link BackLink;
 
+struct Key {
+    explicit Key(int64_t val)
+        : value(val)
+    {
+    }
+    int64_t value;
+};
+
+// 'Object' would have been a better name, but it clashes with a class in ObjectStore
+class ConstObj {
+public:
+    ConstObj(const Table* table, Key key);
+
+    template <typename U>
+    U get(size_t col_ndx) const noexcept;
+
+protected:
+    friend class Table;
+    Table* m_table;
+    size_t m_row_ndx;
+
+    ConstObj(Table* table, size_t row_ndx)
+        : m_table(table)
+        , m_row_ndx(row_ndx)
+    {
+    }
+};
+
+class Obj : public ConstObj {
+public:
+    Obj(Table* table, Key key);
+
+    template <typename U>
+    void set(size_t col_ndx, U&& value, bool is_default = false);
+
+private:
+    friend class Table;
+
+    Obj(Table* table, size_t row_ndx)
+        : ConstObj(table, row_ndx)
+    {
+    }
+};
+
 namespace _impl {
 class TableFriend;
 }
@@ -345,6 +389,10 @@ public:
     ConstRowExpr get(size_t row_ndx) const noexcept;
 
     Obj get_object(Key key);
+    ConstObj get_object(Key key) const
+    {
+        return const_cast<Table*>(this)->get_object(key);
+    }
     RowExpr front() noexcept;
     ConstRowExpr front() const noexcept;
 
@@ -1480,6 +1528,19 @@ private:
     friend class Group;
 };
 
+
+template <typename U>
+U ConstObj::get(size_t col_ndx) const noexcept
+{
+    return m_table->get<U>(col_ndx, m_row_ndx);
+}
+
+template <typename U>
+void Obj::set(size_t col_ndx, U&& value, bool is_default)
+{
+    m_table->set<U>(col_ndx, m_row_ndx, std::forward<U>(value), is_default);
+}
+
 class Table::Iterator {
 public:
     typedef std::bidirectional_iterator_tag iterator_category;
@@ -1488,15 +1549,14 @@ public:
     typedef Obj* pointer;
     typedef Obj& reference;
 
-    Iterator(Table& t, size_t ndx)
+    Iterator(Table* t, size_t ndx)
         : m_table(t)
         , m_row_ndx(ndx)
     {
     }
     Obj operator*()
     {
-        BasicRowExpr<Table> row(&m_table, m_row_ndx);
-        return Obj(row);
+        return Obj(m_table, m_row_ndx);
     }
     Iterator& operator++()
     {
@@ -1515,7 +1575,7 @@ public:
     }
 
 private:
-    Table& m_table;
+    Table* m_table;
     size_t m_row_ndx;
 };
 
