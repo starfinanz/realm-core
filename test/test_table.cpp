@@ -7846,36 +7846,118 @@ TEST_TYPES(Table_ColumnSizeFromRef, std::true_type, std::false_type)
     check_column_sizes(10 * REALM_MAX_BPNODE_SIZE);
 }
 
-ONLY(Table_KeyColumn)
+TEST(Table_KeyColumn_assigned)
 {
     Table t;
+    std::vector<Key> keys;
+    std::vector<std::string> strings;
     t.add_column(type_String, "strings");
     t.add_column_key();
 
-    Key k1 = t.add_object();
-    t.add_object();
-    Key k3 = t.add_object();
+    for (int i = 0; i < 5; i++) {
+        std::string val(6, 'a' + i);
+        Key k = t.add_object();
+        Obj o = t.get_object(k);
+        o.set(0, StringData(val));
+        keys.push_back(k);
+        strings.push_back(val);
+    }
+    //
+    t.remove_object(keys[2]);
+    CHECK_EQUAL(t.size(), 4);
+    for (int i = 0; i < 5; i++) {
+        try {
+            Obj o = t.get_object(keys[i]);
+            auto s = o.get<String>(0);
+            CHECK_EQUAL(s, strings[i]);
+        }
+        catch (const IllegalKey&) {
+            CHECK_EQUAL(i, 2);
+        }
+    }
+    t.remove_object(keys[3]);
+    CHECK_EQUAL(t.size(), 3);
+    for (int i = 0; i < 5; i++) {
+        try {
+            Obj o = t.get_object(keys[i]);
+            auto s = o.get<String>(0);
+            CHECK_EQUAL(s, strings[i]);
+        }
+        catch (const IllegalKey&) {
+            CHECK(i == 2 || i == 3);
+        }
+    }
+    t.remove_object(keys[4]);
+    CHECK_EQUAL(t.size(), 2);
+    for (int i = 0; i < 5; i++) {
+        try {
+            Obj o = t.get_object(keys[i]);
+            auto s = o.get<String>(0);
+            CHECK_EQUAL(s, strings[i]);
+        }
+        catch (const IllegalKey&) {
+            CHECK(i == 2 || i == 3 || i == 4);
+        }
+    }
     {
-        Obj o = t.get_object(k3);
-        o.set(0, StringData("hello"));
+        Key k = t.add_object();
+        CHECK_EQUAL(k.value, keys[2].value);
+        Obj o = t.get_object(k);
+        o.set(0, StringData(strings[2]));
     }
-    t.remove_object(k1); // This will relocate k3
+    t.remove_object(keys[0]);
+    t.remove_object(keys[2]);
+    CHECK_EQUAL(t.size(), 1);
     {
-        Obj o = t.get_object(k3);
-        CHECK_EQUAL(o.get<StringData>(0), "hello");
+        Obj o = t.get_object(keys[1]);
+        auto s = o.get<String>(0);
+        CHECK_EQUAL(s, strings[1]);
     }
-    t.add_object(); // This will move k3 back
-    {
-        ConstObj o = t.get_object(k3);
-        CHECK_EQUAL(o.get<StringData>(0), "hello");
+    t.remove_object(keys[1]);
+    CHECK_EQUAL(t.size(), 0);
+}
+
+TEST(Table_KeyColumn_user)
+{
+    Table t;
+    std::vector<Key> keys;
+    std::vector<std::string> strings;
+    t.add_column(type_String, "strings");
+    t.add_column_key(Table::KeyType::user);
+
+    for (int i = 0; i < 5; i++) {
+        std::string val(6, 'a' + i);
+        Key k(i + 10);
+        t.add_object(k);
+        Obj o = t.get_object(k);
+        o.set(0, StringData(val));
+        keys.push_back(k);
+        strings.push_back(val);
     }
-    for (int i = 0; i < 10; i++) {
-        t.add_object();
+    //
+    t.remove_object(keys[2]);
+    CHECK_EQUAL(t.size(), 4);
+    for (int i = 0; i < 5; i++) {
+        try {
+            Obj o = t.get_object(keys[i]);
+            auto s = o.get<String>(0);
+            CHECK_EQUAL(s, strings[i]);
+        }
+        catch (const IllegalKey&) {
+            CHECK_EQUAL(i, 2);
+        }
     }
-    int i = 100;
-    for (Obj o : t) {
-        std::string str = util::to_string(i++);
-        o.set(0, StringData(str));
+    t.remove_object(keys[3]);
+    CHECK_EQUAL(t.size(), 3);
+    for (int i = 0; i < 5; i++) {
+        try {
+            Obj o = t.get_object(keys[i]);
+            auto s = o.get<String>(0);
+            CHECK_EQUAL(s, strings[i]);
+        }
+        catch (const IllegalKey&) {
+            CHECK(i == 2 || i == 3);
+        }
     }
 }
 

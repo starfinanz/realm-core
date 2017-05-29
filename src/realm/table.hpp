@@ -254,7 +254,8 @@ public:
     size_t add_column_link(DataType type, StringData name, Table& target, LinkType link_type = link_Weak);
     void insert_column_link(size_t column_ndx, DataType type, StringData name, Table& target,
                             LinkType link_type = link_Weak);
-    void add_column_key(size_t from_ndx = realm::npos);
+    enum class KeyType { no_keys, assigned, user };
+    void add_column_key(KeyType key_type = KeyType::assigned, size_t from_ndx = realm::npos);
     void remove_column(size_t column_ndx);
     void rename_column(size_t column_ndx, StringData new_name);
     //@}
@@ -943,6 +944,8 @@ private:
 
     // Number of rows in this table
     size_t m_size;
+
+    KeyType m_key_type;
 
     // Underlying array structure. `m_top` is in use only for root tables; that
     // is, for tables with independent descriptor. `m_columns` contains a ref

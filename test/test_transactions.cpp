@@ -748,7 +748,7 @@ TEST(LangBindHelper_RollbackLinkInsert)
     CHECK_EQUAL(g.get_table(1)->get_link_target(0), g.get_table(0));
 }
 
-TEST(Transactions_KeyColumn)
+TEST(Transactions_KeyColumn_assigned)
 {
     SHARED_GROUP_TEST_PATH(path);
     std::unique_ptr<Replication> hist_w(make_in_realm_history(path));
@@ -778,11 +778,64 @@ TEST(Transactions_KeyColumn)
 
     g.verify();
     {
-        Obj o = g.get_table(0)->get_object(k3);
+        std::unique_ptr<Replication> hist_r(make_in_realm_history(path));
+        SharedGroup sg_r(*hist_r, SharedGroupOptions(crypt_key()));
+        Group& g_r = const_cast<Group&>(sg_r.begin_read());
+
+
+        Obj o = g_r.get_table(0)->get_object(k3);
         CHECK_EQUAL(o.get<StringData>(0), "Hello");
         bool ok = false;
         try {
-            Obj x = g.get_table(0)->get_object(k1);
+            Obj x = g.get_table(0)->get_object(Key(1));
+        }
+        catch (const IllegalKey&) {
+            ok = true;
+        }
+        CHECK(ok);
+    }
+}
+
+TEST(Transactions_KeyColumn_user)
+{
+    SHARED_GROUP_TEST_PATH(path);
+    std::unique_ptr<Replication> hist_w(make_in_realm_history(path));
+    SharedGroup sg_w(*hist_w, SharedGroupOptions(crypt_key()));
+    WriteTransaction wt(sg_w);
+    Group& g = wt.get_group();
+
+    TableRef t = g.insert_table(0, "t0");
+    t->add_column(type_String, "strings");
+    t->add_column_key(Table::KeyType::user);
+    t->add_object(Key(1));
+    t->add_object(Key(2));
+    t->add_object(Key(3));
+
+    LangBindHelper::commit_and_continue_as_read(sg_w);
+    LangBindHelper::promote_to_write(sg_w);
+
+    g.verify();
+    {
+        Obj o = g.get_table(0)->get_object(Key(3));
+        o.set<StringData>(0, "Hello");
+        g.get_table(0)->remove_object(Key(1));
+    }
+
+    LangBindHelper::commit_and_continue_as_read(sg_w);
+    LangBindHelper::promote_to_write(sg_w);
+
+    g.verify();
+    {
+        std::unique_ptr<Replication> hist_r(make_in_realm_history(path));
+        SharedGroup sg_r(*hist_r, SharedGroupOptions(crypt_key()));
+        Group& g_r = const_cast<Group&>(sg_r.begin_read());
+
+
+        Obj o = g_r.get_table(0)->get_object(Key(3));
+        CHECK_EQUAL(o.get<StringData>(0), "Hello");
+        bool ok = false;
+        try {
+            Obj x = g.get_table(0)->get_object(Key(1));
         }
         catch (const IllegalKey&) {
             ok = true;
