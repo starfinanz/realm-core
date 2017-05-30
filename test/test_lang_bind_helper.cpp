@@ -7750,6 +7750,14 @@ public:
     {
         return false;
     }
+    bool add_object(Key)
+    {
+        return false;
+    }
+    bool remove_object(Key)
+    {
+        return false;
+    }
     bool swap_rows(size_t, size_t)
     {
         return false;
@@ -13175,6 +13183,51 @@ TEST(LangBindHelper_MixedTimestampTransaction)
     ConstTableRef t = g.get_table("table");
     CHECK(t->get_mixed(0, 0) == time);
     CHECK(t->get_mixed(0, 1) == neg_time);
+}
+
+TEST(LangBindHelper_RollbackAndContinueAsReadAddObject)
+{
+    SHARED_GROUP_TEST_PATH(path);
+    std::unique_ptr<Replication> hist(make_in_realm_history(path));
+    SharedGroup sg(*hist, SharedGroupOptions(crypt_key()));
+    Group* group = const_cast<Group*>(&sg.begin_read());
+    std::vector<Key> keys;
+    std::vector<std::string> strings;
+
+    {
+        LangBindHelper::promote_to_write(sg);
+        TableRef t = group->get_or_add_table("a_table");
+        t->add_column(type_String, "strings");
+
+        for (int i = 0; i < 5; i++) {
+            std::string val(6, 'a' + i);
+            Key k = t->add_object();
+            Obj o = t->get_object(k);
+            o.set(0, StringData(val));
+            keys.push_back(k);
+            strings.push_back(val);
+        }
+
+        LangBindHelper::commit_and_continue_as_read(sg);
+    }
+    group->verify();
+    {
+        LangBindHelper::promote_to_write(sg);
+        TableRef o2 = group->get_table("a_table");
+        REALM_ASSERT(o2);
+        Key k = keys[2];
+        o2->remove_object(k);
+        try {
+            o2->get_object(k);
+        }
+        catch (const IllegalKey&) {
+            LangBindHelper::rollback_and_continue_as_read(sg);
+        }
+        auto o = o2->get_object(k);
+        auto s = o.get<String>(0);
+        CHECK_EQUAL(s, strings[2]);
+    }
+    group->verify();
 }
 
 

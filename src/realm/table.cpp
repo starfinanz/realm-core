@@ -2042,6 +2042,13 @@ ref_type Table::create_empty_table(Allocator& alloc)
         top.add(v); // Throws
         dg_2.release();
     }
+    {
+        ref_type ref = IntegerColumn::create(alloc);
+        dg_2.reset(ref);
+        top.add(from_ref(ref));
+        dg_2.release();
+    }
+
 
     dg.release();
     return top.get_ref();
@@ -5900,6 +5907,7 @@ void Table::refresh_accessor_tree()
         m_top.init_from_parent();
         m_spec.init_from_parent();
         m_columns.init_from_parent();
+        m_keys.init_from_parent();
     }
     else {
         // Subtable with shared descriptor
@@ -6399,97 +6407,92 @@ void Table::dump_node_structure(std::ostream& out, int level) const
     }
 }
 
-void Table::add_column_key(Table::KeyType key_type, size_t from_ndx)
+void Table::user_assigned_keys(size_t from_ndx)
 {
-    if (key_type != KeyType::no_keys) {
-        REALM_ASSERT(!m_keys.is_attached());
-        ref_type ref = IntegerColumn::create(get_alloc());
-        if (m_top.size() == 2) {
-            m_top.add(from_ref(ref));
-        }
-        else {
-            m_top.set(2, from_ref(ref));
-        }
-        m_keys.set_parent(&m_top, 2);
-        m_keys.init_from_parent();
+    if (m_key_type != KeyType::user) {
+        REALM_ASSERT(size() == 0 || from_ndx != realm::npos);
 
-        if (key_type == KeyType::user) {
+        m_keys.clear();
+        if (!m_keys.has_search_index()) {
             auto index = m_keys.create_search_index();
             ref_type index_ref = index->get_ref();
-            if (m_top.size() == 3) {
-                m_top.add(from_ref(index_ref));
-            }
-            else {
-                m_top.set(3, from_ref(index_ref));
-            }
+            m_top.add(from_ref(index_ref));
             index->set_parent(&m_top, 3);
+        }
 
-            if (from_ndx != realm::npos) {
-                IntegerColumn& from_col = get_column(from_ndx);
-                size_t sz = from_col.size();
-                for (size_t i = 0; i < sz; i++) {
-                    int64_t key = from_col.get(i);
-                    m_keys.add(key);
-                }
-                remove_column(from_ndx);
+        if (from_ndx != realm::npos) {
+            IntegerColumn& from_col = get_column(from_ndx);
+            size_t sz = from_col.size();
+            for (size_t i = 0; i < sz; i++) {
+                int64_t key = from_col.get(i);
+                m_keys.add(key);
             }
+            remove_column(from_ndx);
         }
     }
-    m_key_type = key_type;
+    m_key_type = KeyType::user;
 }
 
 Key Table::add_object(util::Optional<realm::Key> key)
 {
-    REALM_ASSERT(m_key_type != KeyType::no_keys);
+    Key ret;
     size_t row_ndx = add_empty_row();
     switch (m_key_type) {
-        case KeyType::no_keys:
-            break;
         case KeyType::assigned:
             if (m_keys.size() > row_ndx) {
                 size_t row_to_swap = m_keys.get(row_ndx);
-                REALM_ASSERT_DEBUG(size_t(m_keys.get(row_to_swap)) == row_ndx);
-                if (row_to_swap != row_ndx) {
-                    m_keys.set(row_to_swap, row_to_swap);
-                    m_keys.set(row_ndx, row_ndx);
-                    this->swap_rows(row_ndx, row_to_swap);
-                    row_ndx = row_to_swap;
-                }
+                swap_rows(row_ndx, row_to_swap);
+                row_ndx = row_to_swap;
             }
-            else {
-                m_keys.add(row_ndx);
-            }
-            return Key(row_ndx);
+            ret = Key(row_ndx);
             break;
         case KeyType::user:
             REALM_ASSERT(!!key);
-            m_keys.add(key.value().value);
-            return key.value();
+            ret = key.value();
             break;
     }
-
-    // Should not come here
-    return Key(0);
+    do_add_key(ret);
+    return ret;
 }
 
-void Table::remove_object(Key key)
+void Table::do_add_key(Key key)
 {
-    REALM_ASSERT(m_key_type != KeyType::no_keys);
-    size_t last_row = size() - 1;
     switch (m_key_type) {
-        case KeyType::no_keys:
+        case KeyType::assigned:
+            if (size_t(key.value) == m_keys.size()) {
+                m_keys.add(key.value);
+            }
+            else {
+                size_t row_to_swap = m_keys.get(size_t(key.value));
+                REALM_ASSERT(m_keys.get(row_to_swap) == key.value);
+                if (row_to_swap != size_t(key.value)) {
+                    m_keys.set(row_to_swap, row_to_swap);
+                    m_keys.set(size_t(key.value), key.value);
+                }
+            }
             break;
+        case KeyType::user:
+            m_keys.add(key.value);
+            break;
+    }
+    if (Replication* repl = get_repl())
+        repl->add_object(this, key); // Throws
+}
+
+void Table::do_remove_key(Key key, size_t row_to_remove)
+{
+    size_t last_row = size();
+    if (row_to_remove == realm::npos) {
+        row_to_remove = get_row_ndx(key);
+    }
+
+    switch (m_key_type) {
         case KeyType::assigned: {
-            REALM_ASSERT_DEBUG(size_t(key.value) < m_keys.size());
-            int64_t row_to_remove = m_keys.get(size_t(key.value));
-
-            move_last_over(row_to_remove);
-
-            if (last_row != size_t(row_to_remove)) {
-                int64_t key_value = m_keys.get(last_row);
-                m_keys.set(size_t(key_value), row_to_remove);
-                if (key_value != row_to_remove) {
-                    m_keys.set(row_to_remove, key_value);
+            if (last_row != row_to_remove) {
+                int64_t key_moved_row = m_keys.get(last_row);
+                m_keys.set(size_t(key_moved_row), row_to_remove);
+                if (size_t(key_moved_row) != row_to_remove) {
+                    m_keys.set(row_to_remove, key_moved_row);
                 }
             }
             else {
@@ -6497,27 +6500,32 @@ void Table::remove_object(Key key)
             }
 
             // mark key entry as free
-            if (key.value != row_to_remove) {
+            if (size_t(key.value) != row_to_remove) {
                 m_keys.set(size_t(key.value), key.value);
             }
             break;
         }
         case KeyType::user: {
-            size_t row_to_remove = m_keys.find_first(size_t(key.value));
-            REALM_ASSERT_DEBUG(row_to_remove != realm::npos);
-            move_last_over(row_to_remove);
             m_keys.move_last_over(row_to_remove, last_row);
             break;
         }
     }
+    if (Replication* repl = get_repl())
+        repl->remove_object(this, key); // Throws
 }
 
-Obj Table::get_object(Key key)
+void Table::remove_object(Key key)
+{
+    size_t row_to_remove = get_row_ndx(key);
+
+    move_last_over(row_to_remove);
+    do_remove_key(key, row_to_remove);
+}
+
+size_t Table::get_row_ndx(Key key) const
 {
     size_t row = realm::npos;
     switch (m_key_type) {
-        case KeyType::no_keys:
-            break;
         case KeyType::assigned: {
             if (size_t(key.value) >= m_keys.size()) {
                 throw IllegalKey();
@@ -6533,7 +6541,7 @@ Obj Table::get_object(Key key)
     if (row >= size()) {
         throw IllegalKey();
     }
-    return Obj(this, row);
+    return row;
 }
 
 Table::Iterator Table::begin()

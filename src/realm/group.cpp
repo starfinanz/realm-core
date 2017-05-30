@@ -1378,6 +1378,16 @@ public:
         return true;
     }
 
+    bool add_object(Key)
+    {
+        return true;
+    }
+
+    bool remove_object(Key)
+    {
+        return true;
+    }
+
     bool swap_rows(size_t row_ndx_1, size_t row_ndx_2) noexcept
     {
         using tf = _impl::TableFriend;

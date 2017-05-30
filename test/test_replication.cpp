@@ -3732,6 +3732,53 @@ TEST(Replication_MoveSelectedLinkView)
     // link list to a new row or column index.
 }
 
+TEST(Replication_AddAndRemoveObjects)
+{
+    SHARED_GROUP_TEST_PATH(path_1);
+    SHARED_GROUP_TEST_PATH(path_2);
+
+    util::Logger& replay_logger = test_context.logger;
+
+    MyTrivialReplication repl(path_1);
+    SharedGroup sg_1(repl);
+    SharedGroup sg_2(path_2);
+    Key k1;
+    Key k3;
+
+    {
+        WriteTransaction wt(sg_1);
+        TableRef table = wt.add_table("table");
+        table->add_column(type_String, "string");
+        k1 = table->add_object();
+        table->add_object();
+        k3 = table->add_object();
+        wt.commit();
+    }
+    {
+        WriteTransaction wt(sg_1);
+        TableRef table = wt.get_table("table");
+        Obj o = table->get_object(k3);
+        o.set<StringData>(0, "Hello");
+        table->remove_object(k1);
+        wt.commit();
+    }
+    repl.replay_transacts(sg_2, replay_logger);
+    {
+        ReadTransaction rt(sg_2);
+        auto table = rt.get_table("table");
+        auto o = table->get_object(k3);
+        CHECK_EQUAL(o.get<StringData>(0), "Hello");
+        bool ok = false;
+        try {
+            table->get_object(k1);
+        }
+        catch (const IllegalKey&) {
+            ok = true;
+        }
+        CHECK(ok);
+    }
+}
+
 
 } // anonymous namespace
 

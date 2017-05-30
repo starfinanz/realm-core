@@ -65,12 +65,26 @@ typedef Link LinkList;
 typedef Link BackLink;
 
 struct Key {
+    constexpr Key()
+        : value(-1)
+    {
+    }
     explicit Key(int64_t val)
         : value(val)
     {
     }
+    bool operator==(const Key& rhs) const
+    {
+        return value == rhs.value;
+    }
+    bool operator!=(const Key& rhs) const
+    {
+        return value != rhs.value;
+    }
     int64_t value;
 };
+
+constexpr Key null_key;
 
 // 'Object' would have been a better name, but it clashes with a class in ObjectStore
 class ConstObj {
@@ -254,8 +268,7 @@ public:
     size_t add_column_link(DataType type, StringData name, Table& target, LinkType link_type = link_Weak);
     void insert_column_link(size_t column_ndx, DataType type, StringData name, Table& target,
                             LinkType link_type = link_Weak);
-    enum class KeyType { no_keys, assigned, user };
-    void add_column_key(KeyType key_type = KeyType::assigned, size_t from_ndx = realm::npos);
+    void user_assigned_keys(size_t from_ndx = realm::npos);
     void remove_column(size_t column_ndx);
     void rename_column(size_t column_ndx, StringData new_name);
     //@}
@@ -389,7 +402,11 @@ public:
     RowExpr get(size_t row_ndx) noexcept;
     ConstRowExpr get(size_t row_ndx) const noexcept;
 
-    Obj get_object(Key key);
+    size_t get_row_ndx(Key key) const;
+    Obj get_object(Key key)
+    {
+        return Obj(this, get_row_ndx(key));
+    }
     ConstObj get_object(Key key) const
     {
         return const_cast<Table*>(this)->get_object(key);
@@ -945,6 +962,7 @@ private:
     // Number of rows in this table
     size_t m_size;
 
+    enum class KeyType { assigned, user };
     KeyType m_key_type;
 
     // Underlying array structure. `m_top` is in use only for root tables; that
@@ -1027,6 +1045,8 @@ private:
 
     void erase_row(size_t row_ndx, bool is_move_last_over);
     void batch_erase_rows(const IntegerColumn& row_indexes, bool is_move_last_over);
+    void do_add_key(Key key);
+    void do_remove_key(Key key, size_t row_to_remove = realm::npos);
     void do_remove(size_t row_ndx, bool broken_reciprocal_backlinks);
     void do_move_last_over(size_t row_ndx, bool broken_reciprocal_backlinks);
     void do_swap_rows(size_t row_ndx_1, size_t row_ndx_2);
@@ -2457,6 +2477,16 @@ public:
     static ColumnBase& get_column(const Table& table, size_t col_ndx)
     {
         return *table.m_cols[col_ndx];
+    }
+
+    static void do_add_key(Table& table, Key key)
+    {
+        table.do_add_key(key); // Throws
+    }
+
+    static void do_remove_key(Table& table, Key key)
+    {
+        table.do_remove_key(key); // Throws
     }
 
     static void do_remove(Table& table, size_t row_ndx)

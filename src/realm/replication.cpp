@@ -299,6 +299,24 @@ public:
         return true;
     }
 
+    bool add_object(Key key)
+    {
+        if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_table)))
+            return false;
+        typedef _impl::TableFriend tf;
+        tf::do_add_key(*m_table, key);
+        return true;
+    }
+
+    bool remove_object(Key key)
+    {
+        if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_table)))
+            return false;
+        typedef _impl::TableFriend tf;
+        tf::do_remove_key(*m_table, key);
+        return true;
+    }
+
     bool swap_rows(size_t row_ndx_1, size_t row_ndx_2)
     {
         if (REALM_UNLIKELY(REALM_COVER_NEVER(!m_table)))

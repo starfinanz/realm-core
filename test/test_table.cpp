@@ -7852,7 +7852,6 @@ TEST(Table_KeyColumn_assigned)
     std::vector<Key> keys;
     std::vector<std::string> strings;
     t.add_column(type_String, "strings");
-    t.add_column_key();
 
     for (int i = 0; i < 5; i++) {
         std::string val(6, 'a' + i);
@@ -7923,7 +7922,7 @@ TEST(Table_KeyColumn_user)
     std::vector<Key> keys;
     std::vector<std::string> strings;
     t.add_column(type_String, "strings");
-    t.add_column_key(Table::KeyType::user);
+    t.user_assigned_keys();
 
     for (int i = 0; i < 5; i++) {
         std::string val(6, 'a' + i);
