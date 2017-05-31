@@ -983,8 +983,8 @@ private:
     // Number of rows in this table
     size_t m_size;
 
-    enum class KeyType { assigned, user };
-    KeyType m_key_type;
+    enum class KeyType { absent, assigned, user };
+    KeyType m_key_type = KeyType::absent;
 
     // Underlying array structure. `m_top` is in use only for root tables; that
     // is, for tables with independent descriptor. `m_columns` contains a ref
@@ -1898,7 +1898,7 @@ inline Table::Table(Allocator& alloc)
     , m_spec(alloc)
     , m_keys(IntegerColumn::unattached_root_tag(), alloc)
 {
-    m_ref_count = 1; // Explicitely managed lifetime
+    m_ref_count = 1; // Explicitly managed lifetime
 
     ref_type ref = create_empty_table(alloc); // Throws
     Parent* parent = nullptr;
@@ -1912,7 +1912,7 @@ inline Table::Table(const Table& t, Allocator& alloc)
     , m_spec(alloc)
     , m_keys(IntegerColumn::unattached_root_tag(), alloc)
 {
-    m_ref_count = 1; // Explicitely managed lifetime
+    m_ref_count = 1; // Explicitly managed lifetime
 
     ref_type ref = t.clone(alloc); // Throws
     Parent* parent = nullptr;
@@ -1925,6 +1925,8 @@ inline Table::Table(ref_count_tag, Allocator& alloc)
     , m_columns(alloc)
     , m_spec(alloc)
     , m_keys(IntegerColumn::unattached_root_tag(), alloc)
+    , m_mark(false)
+    , m_version(0)
 {
     m_ref_count = 0; // Lifetime managed by reference counting
 }

@@ -215,7 +215,10 @@ public:
         table_has_no_columns,
 
         /// Referring to a column that has been deleted.
-        column_does_not_exist
+        column_does_not_exist,
+
+        // Using an interface that requires a key column to be present
+        table_has_no_key_column
     };
 
     LogicError(ErrorKind message);

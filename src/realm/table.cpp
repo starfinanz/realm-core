@@ -6438,6 +6438,9 @@ Obj Table::create_object(util::Optional<realm::Key> key)
     Key ret;
     size_t row_ndx = add_empty_row();
     switch (m_key_type) {
+        case KeyType::absent:
+            throw LogicError(LogicError::table_has_no_key_column);
+            break;
         case KeyType::assigned:
             if (m_keys.size() > row_ndx) {
                 size_t row_to_swap = m_keys.get(row_ndx);
@@ -6458,6 +6461,9 @@ Obj Table::create_object(util::Optional<realm::Key> key)
 void Table::do_add_key(Key key)
 {
     switch (m_key_type) {
+        case KeyType::absent:
+            throw LogicError(LogicError::table_has_no_key_column);
+            break;
         case KeyType::assigned:
             if (size_t(key.value) == m_keys.size()) {
                 m_keys.add(key.value);
@@ -6487,6 +6493,9 @@ void Table::do_remove_key(Key key, size_t row_to_remove)
     }
 
     switch (m_key_type) {
+        case KeyType::absent:
+            throw LogicError(LogicError::table_has_no_key_column);
+            break;
         case KeyType::assigned: {
             if (last_row != row_to_remove) {
                 int64_t key_moved_row = m_keys.get(last_row);
@@ -6526,6 +6535,9 @@ size_t Table::get_row_ndx(Key key) const
 {
     size_t row = realm::npos;
     switch (m_key_type) {
+        case KeyType::absent:
+            throw LogicError(LogicError::table_has_no_key_column);
+            break;
         case KeyType::assigned: {
             if (size_t(key.value) >= m_keys.size()) {
                 throw IllegalKey();

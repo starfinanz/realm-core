@@ -89,6 +89,8 @@ const char* LogicError::what() const noexcept
             return "Table has no columns";
         case column_does_not_exist:
             return "Column does not exist";
+        case table_has_no_key_column:
+            return "Table has no key column";
     }
     return "Unknown error";
 }
