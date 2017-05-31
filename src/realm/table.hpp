@@ -89,7 +89,14 @@ constexpr Key null_key;
 // 'Object' would have been a better name, but it clashes with a class in ObjectStore
 class ConstObj {
 public:
+    ConstObj(const Table* table, Key key, size_t row_ndx);
+    ConstObj(const Table* table, size_t row_ndx);
     ConstObj(const Table* table, Key key);
+
+    Key get_key() const
+    {
+        return m_key;
+    }
 
     template <typename U>
     U get(size_t col_ndx) const noexcept;
@@ -98,17 +105,30 @@ protected:
     friend class Table;
     Table* m_table;
     size_t m_row_ndx;
+    Key m_key;
 
-    ConstObj(Table* table, size_t row_ndx)
+    ConstObj(Table* table, size_t row_ndx, Key key)
         : m_table(table)
         , m_row_ndx(row_ndx)
+        , m_key(key)
     {
     }
 };
 
 class Obj : public ConstObj {
 public:
-    Obj(Table* table, Key key);
+    Obj(Table* table, Key key, size_t row_ndx)
+        : ConstObj(table, key, row_ndx)
+    {
+    }
+    Obj(Table* table, Key key)
+        : ConstObj(table, key)
+    {
+    }
+    Obj(Table* table, size_t row_ndx)
+        : ConstObj(table, row_ndx)
+    {
+    }
 
     template <typename U>
     void set(size_t col_ndx, U&& value, bool is_default = false);
@@ -116,8 +136,8 @@ public:
 private:
     friend class Table;
 
-    Obj(Table* table, size_t row_ndx)
-        : ConstObj(table, row_ndx)
+    Obj(Table* table, size_t row_ndx, Key key)
+        : ConstObj(table, row_ndx, key)
     {
     }
 };
@@ -402,10 +422,11 @@ public:
     RowExpr get(size_t row_ndx) noexcept;
     ConstRowExpr get(size_t row_ndx) const noexcept;
 
+    Key get_key(size_t row_ndx) const;
     size_t get_row_ndx(Key key) const;
     Obj get_object(Key key)
     {
-        return Obj(this, get_row_ndx(key));
+        return Obj(this, key);
     }
     ConstObj get_object(Key key) const
     {
@@ -443,7 +464,7 @@ public:
 
     size_t add_empty_row(size_t num_rows = 1);
     void insert_empty_row(size_t row_ndx, size_t num_rows = 1);
-    Key add_object(util::Optional<Key> key = {});
+    Obj create_object(util::Optional<Key> key = {});
     void remove(size_t row_ndx);
     void remove_last();
     void move_last_over(size_t row_ndx);
@@ -1551,6 +1572,22 @@ private:
     friend class Group;
 };
 
+inline ConstObj::ConstObj(const Table* table, Key key, size_t row_ndx)
+    : m_table(const_cast<Table*>(table))
+    , m_row_ndx(row_ndx)
+    , m_key(key)
+{
+}
+
+inline ConstObj::ConstObj(const Table* table, size_t row_ndx)
+    : ConstObj(table, table->get_key(row_ndx), row_ndx)
+{
+}
+
+inline ConstObj::ConstObj(const Table* table, Key key)
+    : ConstObj(table, key, table->get_row_ndx(key))
+{
+}
 
 template <typename U>
 U ConstObj::get(size_t col_ndx) const noexcept
@@ -2012,6 +2049,11 @@ inline Table::ConstRowExpr Table::get(size_t row_ndx) const noexcept
 {
     REALM_ASSERT_3(row_ndx, <, size());
     return ConstRowExpr(this, row_ndx);
+}
+
+inline Key Table::get_key(size_t row_ndx) const
+{
+    return Key(m_keys.get(row_ndx));
 }
 
 inline Table::RowExpr Table::front() noexcept

@@ -6433,7 +6433,7 @@ void Table::user_assigned_keys(size_t from_ndx)
     m_key_type = KeyType::user;
 }
 
-Key Table::add_object(util::Optional<realm::Key> key)
+Obj Table::create_object(util::Optional<realm::Key> key)
 {
     Key ret;
     size_t row_ndx = add_empty_row();
@@ -6452,7 +6452,7 @@ Key Table::add_object(util::Optional<realm::Key> key)
             break;
     }
     do_add_key(ret);
-    return ret;
+    return Obj(this, ret, row_ndx);
 }
 
 void Table::do_add_key(Key key)
@@ -6476,7 +6476,7 @@ void Table::do_add_key(Key key)
             break;
     }
     if (Replication* repl = get_repl())
-        repl->add_object(this, key); // Throws
+        repl->create_object(this, key); // Throws
 }
 
 void Table::do_remove_key(Key key, size_t row_to_remove)

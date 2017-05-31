@@ -1378,7 +1378,7 @@ public:
         return true;
     }
 
-    bool add_object(Key)
+    bool create_object(Key)
     {
         return true;
     }

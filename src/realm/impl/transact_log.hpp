@@ -79,7 +79,7 @@ enum Instruction {
     instr_LinkListNullify = 36, // Remove an entry from a link list due to linked row being erased
     instr_LinkListClear = 37,   // Ramove all entries from a link list
     instr_LinkListSetAll = 38,  // Assign to link list entry
-    instr_AddObject = 39,
+    instr_CreateObject = 39,
     instr_RemoveObject = 40,
 };
 
@@ -162,7 +162,7 @@ public:
     {
         return true;
     }
-    bool add_object(Key)
+    bool create_object(Key)
     {
         return true;
     }
@@ -345,7 +345,7 @@ public:
     /// Must have table selected.
     bool insert_empty_rows(size_t row_ndx, size_t num_rows_to_insert, size_t prior_num_rows, bool unordered);
     bool erase_rows(size_t row_ndx, size_t num_rows_to_erase, size_t prior_num_rows, bool unordered);
-    bool add_object(Key key);
+    bool create_object(Key key);
     bool remove_object(Key key);
     bool swap_rows(size_t row_ndx_1, size_t row_ndx_2);
     bool merge_rows(size_t row_ndx, size_t new_row_ndx);
@@ -517,7 +517,7 @@ public:
     virtual void erase_rows(const Table*, size_t row_ndx, size_t num_rows_to_erase, size_t prior_num_rows,
                             bool is_move_last_over);
 
-    virtual void add_object(const Table* t, Key key);
+    virtual void create_object(const Table* t, Key key);
     virtual void remove_object(const Table* t, Key key);
     virtual void swap_rows(const Table*, size_t row_ndx_1, size_t row_ndx_2);
     virtual void merge_rows(const Table*, size_t row_ndx, size_t new_row_ndx);
@@ -1492,17 +1492,17 @@ inline void TransactLogConvenientEncoder::erase_rows(const Table* t, size_t row_
 }
 
 
-inline bool TransactLogEncoder::add_object(Key key)
+inline bool TransactLogEncoder::create_object(Key key)
 {
-    append_simple_instr(instr_AddObject, key.value); // Throws
+    append_simple_instr(instr_CreateObject, key.value); // Throws
     return true;
 }
 
 
-inline void TransactLogConvenientEncoder::add_object(const Table* t, Key key)
+inline void TransactLogConvenientEncoder::create_object(const Table* t, Key key)
 {
     select_table(t);           // Throws
-    m_encoder.add_object(key); // Throws
+    m_encoder.create_object(key); // Throws
 }
 
 inline bool TransactLogEncoder::remove_object(Key key)
@@ -1918,9 +1918,9 @@ void TransactLogParser::parse_one(InstructionHandler& handler)
                 parser_error();
             return;
         }
-        case instr_AddObject: {
+        case instr_CreateObject: {
             int64_t key_value = read_int<int64_t>(); // Throws
-            if (!handler.add_object(Key(key_value))) // Throws
+            if (!handler.create_object(Key(key_value))) // Throws
                 parser_error();
             return;
         }
@@ -2478,7 +2478,7 @@ public:
         return true;
     }
 
-    bool add_object(Key key)
+    bool create_object(Key key)
     {
         m_encoder.remove_object(key);
         append_instruction();
@@ -2487,7 +2487,7 @@ public:
 
     bool remove_object(Key key)
     {
-        m_encoder.add_object(key);
+        m_encoder.create_object(key);
         append_instruction();
         return true;
     }

@@ -758,9 +758,9 @@ TEST(Transactions_KeyColumn_assigned)
 
     TableRef t = g.insert_table(0, "t0");
     t->add_column(type_String, "strings");
-    Key k1 = t->add_object();
-    t->add_object();
-    Key k3 = t->add_object();
+    Key k1 = t->create_object().get_key();
+    t->create_object();
+    Key k3 = t->create_object().get_key();
 
     LangBindHelper::commit_and_continue_as_read(sg_w);
     LangBindHelper::promote_to_write(sg_w);
@@ -806,9 +806,9 @@ TEST(Transactions_KeyColumn_user)
     TableRef t = g.insert_table(0, "t0");
     t->add_column(type_String, "strings");
     t->user_assigned_keys();
-    t->add_object(Key(1));
-    t->add_object(Key(2));
-    t->add_object(Key(3));
+    t->create_object(Key(1));
+    t->create_object(Key(2));
+    t->create_object(Key(3));
 
     LangBindHelper::commit_and_continue_as_read(sg_w);
     LangBindHelper::promote_to_write(sg_w);

@@ -3749,9 +3749,9 @@ TEST(Replication_AddAndRemoveObjects)
         WriteTransaction wt(sg_1);
         TableRef table = wt.add_table("table");
         table->add_column(type_String, "string");
-        k1 = table->add_object();
-        table->add_object();
-        k3 = table->add_object();
+        k1 = table->create_object().get_key();
+        table->create_object();
+        k3 = table->create_object().get_key();
         wt.commit();
     }
     {

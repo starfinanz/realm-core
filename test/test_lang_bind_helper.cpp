@@ -7750,7 +7750,7 @@ public:
     {
         return false;
     }
-    bool add_object(Key)
+    bool create_object(Key)
     {
         return false;
     }
@@ -13201,10 +13201,9 @@ TEST(LangBindHelper_RollbackAndContinueAsReadAddObject)
 
         for (int i = 0; i < 5; i++) {
             std::string val(6, 'a' + i);
-            Key k = t->add_object();
-            Obj o = t->get_object(k);
+            Obj o = t->create_object();
             o.set(0, StringData(val));
-            keys.push_back(k);
+            keys.push_back(o.get_key());
             strings.push_back(val);
         }
 

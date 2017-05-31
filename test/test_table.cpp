@@ -7855,10 +7855,9 @@ TEST(Table_KeyColumn_assigned)
 
     for (int i = 0; i < 5; i++) {
         std::string val(6, 'a' + i);
-        Key k = t.add_object();
-        Obj o = t.get_object(k);
+        Obj o = t.create_object();
         o.set(0, StringData(val));
-        keys.push_back(k);
+        keys.push_back(o.get_key());
         strings.push_back(val);
     }
     //
@@ -7899,9 +7898,8 @@ TEST(Table_KeyColumn_assigned)
         }
     }
     {
-        Key k = t.add_object();
-        CHECK_EQUAL(k.value, keys[2].value);
-        Obj o = t.get_object(k);
+        Obj o = t.create_object();
+        CHECK_EQUAL(o.get_key().value, keys[2].value);
         o.set(0, StringData(strings[2]));
     }
     t.remove_object(keys[0]);
@@ -7927,7 +7925,7 @@ TEST(Table_KeyColumn_user)
     for (int i = 0; i < 5; i++) {
         std::string val(6, 'a' + i);
         Key k(i + 10);
-        t.add_object(k);
+        t.create_object(k);
         Obj o = t.get_object(k);
         o.set(0, StringData(val));
         keys.push_back(k);
