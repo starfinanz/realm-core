@@ -132,6 +132,7 @@ public:
 
     template <typename U>
     void set(size_t col_ndx, U&& value, bool is_default = false);
+    void set_null(size_t col_ndx, bool is_default = false);
 
 private:
     friend class Table;
@@ -1599,6 +1600,11 @@ template <typename U>
 void Obj::set(size_t col_ndx, U&& value, bool is_default)
 {
     m_table->set<U>(col_ndx, m_row_ndx, std::forward<U>(value), is_default);
+}
+
+inline void Obj::set_null(size_t col_ndx, bool is_default)
+{
+    m_table->set_null(col_ndx, m_row_ndx, is_default);
 }
 
 class Table::Iterator {

@@ -2496,6 +2496,9 @@ void Table::do_clear(bool broken_reciprocal_backlinks)
         ColumnBase& col = get_column_base(col_ndx);
         col.clear(m_size, broken_reciprocal_backlinks); // Throws
     }
+    if (m_keys.is_attached()) {
+        m_keys.clear();
+    }
     m_size = 0;
 
     discard_row_accessors();
