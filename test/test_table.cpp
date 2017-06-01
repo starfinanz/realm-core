@@ -117,25 +117,25 @@ TEST(Table_ManyColumnsCrash2)
 TEST(Table_Null)
 {
     {
-        // Check that add_empty_row() adds NULL string as default
+        // Check that create_object() adds NULL string as default
         Group group;
         TableRef table = group.add_table("test");
 
         table->add_column(type_String, "name", true); // nullable = true
-        table->add_empty_row();
+        table->create_object();
 
         CHECK(table->get_string(0, 0).is_null());
     }
 
     {
-        // Check that add_empty_row() adds empty string as default
+        // Check that create_object() adds empty string as default
         Group group;
         TableRef table = group.add_table("test");
 
         table->add_column(type_String, "name");
         CHECK(!table->is_nullable(0));
 
-        table->add_empty_row();
+        table->create_object();
         CHECK(!table->get_string(0, 0).is_null());
 
         // Test that inserting null in non-nullable column will throw
@@ -143,22 +143,22 @@ TEST(Table_Null)
     }
 
     {
-        // Check that add_empty_row() adds null integer as default
+        // Check that create_object() adds null integer as default
         Group group;
         TableRef table = group.add_table("table");
         table->add_column(type_Int, "name", true /*nullable*/);
         CHECK(table->is_nullable(0));
-        table->add_empty_row();
+        table->create_object();
         CHECK(table->is_null(0, 0));
     }
 
     {
-        // Check that add_empty_row() adds 0 integer as default.
+        // Check that create_object() adds 0 integer as default.
         Group group;
         TableRef table = group.add_table("test");
         table->add_column(type_Int, "name");
         CHECK(!table->is_nullable(0));
-        table->add_empty_row();
+        table->create_object();
         CHECK(!table->is_null(0, 0));
         CHECK_EQUAL(0, table->get_int(0, 0));
 
@@ -167,26 +167,26 @@ TEST(Table_Null)
     }
 
     {
-        // Check that add_empty_row() adds NULL binary as default
+        // Check that create_object() adds NULL binary as default
         Group group;
         TableRef table = group.add_table("test");
 
         table->add_column(type_Binary, "name", true /*nullable*/);
         CHECK(table->is_nullable(0));
 
-        table->add_empty_row();
+        table->create_object();
         CHECK(table->get_binary(0, 0).is_null());
     }
 
     {
-        // Check that add_empty_row() adds empty binary as default
+        // Check that create_object() adds empty binary as default
         Group group;
         TableRef table = group.add_table("test");
 
         table->add_column(type_Binary, "name");
         CHECK(!table->is_nullable(0));
 
-        table->add_empty_row();
+        table->create_object();
         CHECK(!table->get_binary(0, 0).is_null());
 
         // Test that inserting null in non-nullable column will throw
@@ -226,19 +226,12 @@ TEST(Table_DeleteCrash)
     table->add_column(type_String, "name");
     table->add_column(type_Int, "age");
 
-    table->add_empty_row(3);
-    table->set_string(0, 0, "Alice");
-    table->set_int(1, 0, 27);
+    Key k0 = table->create_object().set_all("Alice", 27).get_key();
+    Key k1 = table->create_object().set_all("Bob", 50).get_key();
+    table->create_object().set_all("Peter", 44);
 
-    table->set_string(0, 1, "Bob");
-    table->set_int(1, 1, 50);
-
-    table->set_string(0, 2, "Peter");
-    table->set_int(1, 2, 44);
-
-    table->remove(0);
-
-    table->remove(1);
+    table->remove_object(k0);
+    table->remove_object(k1);
 }
 
 
@@ -251,9 +244,7 @@ TEST(Table_OptimizeCrash)
     ttt.optimize();
     ttt.add_search_index(1);
     ttt.clear();
-    ttt.add_empty_row(1);
-    ttt.set_int(0, 0, 1);
-    ttt.set_string(1, 0, "AA");
+    ttt.create_object().set_all(1, "AA");
 }
 
 TEST(Table_DateTimeMinMax)
@@ -266,21 +257,19 @@ TEST(Table_DateTimeMinMax)
     // We test different code paths of the internal Core minmax method. First a null value as initial "best candidate",
     // then non-null first. For each case we then try both a substitution of best candidate, then non-substitution. 4
     // permutations in total.
-    
-    table->add_empty_row(3);
-    table->set_null(0, 0);
-    table->set_timestamp(0, 1, {0, 0});
-    table->set_timestamp(0, 2, {2, 2});
+
+    table->create_object().set_null(0);
+    table->create_object().set(0, Timestamp(0, 0));
+    table->create_object().set(0, Timestamp{2, 2});
 
     CHECK_EQUAL(table->maximum_timestamp(0), Timestamp(2, 2));
     CHECK_EQUAL(table->minimum_timestamp(0), Timestamp(0, 0));
 
     table->clear();
     table->insert_column(0, type_Timestamp, "time", true);
-    table->add_empty_row(3);
-    table->set_null(0, 0);
-    table->set_timestamp(0, 1, {0, 0});
-    table->set_timestamp(0, 2, {2, 2});
+    table->create_object().set_null(0);
+    table->create_object().set<Timestamp>(0, {0, 0});
+    table->create_object().set<Timestamp>(0, {2, 2});
 
     size_t idx; // tableview entry that points at the max/min value
 
@@ -291,20 +280,18 @@ TEST(Table_DateTimeMinMax)
 
     table->clear();
     table->insert_column(0, type_Timestamp, "time", true);
-    table->add_empty_row(3);
-    table->set_null(0, 0);
-    table->set_timestamp(0, 1, {0, 0});
-    table->set_timestamp(0, 2, {2, 2});
+    table->create_object().set_null(0);
+    table->create_object().set<Timestamp>(0, {0, 0});
+    table->create_object().set<Timestamp>(0, {2, 2});
 
     CHECK_EQUAL(table->maximum_timestamp(0), Timestamp(2, 2));
     CHECK_EQUAL(table->minimum_timestamp(0), Timestamp(0, 0));
 
     table->clear();
     table->insert_column(0, type_Timestamp, "time", true);
-    table->add_empty_row(3);
-    table->set_null(0, 0);
-    table->set_timestamp(0, 1, {0, 0});
-    table->set_timestamp(0, 2, {2, 2});
+    table->create_object().set_null(0);
+    table->create_object().set<Timestamp>(0, {0, 0});
+    table->create_object().set<Timestamp>(0, {2, 2});
 
     CHECK_EQUAL(table->maximum_timestamp(0, &idx), Timestamp(2, 2));
     CHECK_EQUAL(idx, 2);
@@ -321,7 +308,7 @@ TEST(Table_MinMaxSingleNullRow)
     table->insert_column(0, type_Timestamp, "time", true);
     table->insert_column(1, type_Int, "int", true);
     table->insert_column(2, type_Float, "float", true);
-    table->add_empty_row();
+    table->create_object();
 
     size_t ret;
 
@@ -351,7 +338,7 @@ TEST(Table_MinMaxSingleNullRow)
         table.get()->where().maximum_float(2, nullptr, 0, npos, npos, &ret); // max on query
         CHECK(ret == npos);
 
-        table->add_empty_row();
+        table->create_object();
 
         CHECK(table->maximum_timestamp(0).is_null()); // max on table
         table.get()->where().find_all().maximum_timestamp(0, &ret); // max on tableview
@@ -383,7 +370,7 @@ TEST(Table_MinMaxSingleNullRow)
         table.get()->where().minimum_float(2, nullptr, 0, npos, npos, &ret); // max on query
         CHECK(ret == npos);
 
-        table->add_empty_row();
+        table->create_object();
 
         CHECK(table->minimum_timestamp(0).is_null()); // max on table
         table.get()->where().find_all().minimum_timestamp(0, &ret); // max on tableview
@@ -401,18 +388,17 @@ TEST(TableView_AggregateBugs)
     {
         Table table;
         table.add_column(type_Int, "ints", true);
-        table.add_empty_row(4);
 
-        table.set_int(0, 0, 1);
-        table.set_int(0, 1, 2);
-        table.set_null(0, 2);
-        table.set_int(0, 3, 42);
+        Obj o0 = table.create_object().set(0, 1);
+        Obj o1 = table.create_object().set(0, 2);
+        Obj o2 = table.create_object().set_null(0);
+        Obj o3 = table.create_object().set(0, 42);
 
         table.add_column(type_Double, "doubles", true);
-        table.set_double(1, 0, 1.);
-        table.set_double(1, 1, 2.);
-        table.set_null(1, 2);
-        table.set_double(1, 3, 42.);
+        o0.set(1, 1.);
+        o1.set(1, 2.);
+        o2.set_null(1);
+        o3.set(1, 42.);
 
         auto tv = table.where().not_equal(0, 42).find_all();
         CHECK_EQUAL(tv.size(), 3);
@@ -436,10 +422,10 @@ TEST(TableView_AggregateBugs)
 
         // Add Double column and do same tests on that
         table.add_column(type_Double, "doubles", true);
-        table.set_double(1, 0, 1.);
-        table.set_double(1, 1, 2.);
-        table.set_null(1, 2);
-        table.set_double(1, 3, 42.);
+        o0.set(1, 1.);
+        o1.set(1, 2.);
+        o2.set_null(1);
+        o3.set(1, 42.);
 
         tv = table.where().not_equal(1, 42.).find_all();
         CHECK_EQUAL(tv.size(), 3);
@@ -466,11 +452,10 @@ TEST(TableView_AggregateBugs)
     {
         Table table;
         table.add_column(type_Int, "value", true);
-        table.add_empty_row(4);
-        table.set_null(0, 0);
-        table.set_int(0, 1, 1);
-        table.set_int(0, 2, 2);
-        table.set_int(0, 3, 42);
+        table.create_object().set_null(0);
+        table.create_object().set(0, 1);
+        table.create_object().set(0, 2);
+        table.create_object().set(0, 42);
 
         auto tv = table.where().not_equal(0, 42).find_all();
         CHECK_EQUAL(tv.size(), 3);
@@ -503,7 +488,10 @@ TEST(Table_AggregateFuzz)
         table->insert_column(2, type_Float, "float", true);
 
         size_t rows = size_t(fastrand(10));
-        table->add_empty_row(rows);
+        std::vector<Key> keys;
+        for (unsigned i = 0; i < rows; i++) {
+            keys.push_back(table->create_object().get_key());
+        }
         int64_t largest = 0;
         int64_t smallest = 0;
         size_t largest_pos = npos;
@@ -514,22 +502,20 @@ TEST(Table_AggregateFuzz)
         size_t nulls = 0;
 
         // Create some rows with values and some rows with just nulls
-        for (size_t t = 0; t < rows; t++) {
+        for (auto k : keys) {
             bool null = (fastrand(1) == 0);
             if (!null) {
                 int64_t value = fastrand(10);
                 sum += value;
                 if (largest_pos == npos || value > largest) {
                     largest = value;
-                    largest_pos = t;
+                    largest_pos = table->get_row_ndx(k);
                 }
                 if (smallest_pos == npos || value < smallest) {
                     smallest = value;
-                    smallest_pos = t;
+                    smallest_pos = table->get_row_ndx(k);
                 }
-                table.get()->set_timestamp(0, t, Timestamp(value, 0));
-                table.get()->set_int(1, t, value);
-                table.get()->set_float(2, t, float(value));
+                table->get_object(k).set_all(Timestamp(value, 0), value, float(value));
             }
             else {
                 nulls++;
@@ -761,25 +747,25 @@ TEST(Table_1)
 
     // Test adding a single empty row
     // and filling it with values
-    size_t ndx = table.add_empty_row();
-    table.set_int(0, ndx, 0);
-    table.set_int(1, ndx, 10);
+    Key k = table.create_object().set_all(0, 10).get_key();
 
-    CHECK_EQUAL(0, table.get_int(0, ndx));
-    CHECK_EQUAL(10, table.get_int(1, ndx));
+    Obj obj = table.get_object(k);
+    CHECK_EQUAL(0, obj.get<Int>(0));
+    CHECK_EQUAL(10, obj.get<Int>(1));
 
     // Test adding multiple rows
-    ndx = table.add_empty_row(7);
-    for (size_t i = ndx; i < 7; ++i) {
-        table.set_int(0, i, 2 * i);
-        table.set_int(1, i, 20 * i);
+    std::vector<std::pair<Key, int>> values;
+    for (int i = 1; i < 7; ++i) {
+        Obj o = table.create_object().set_all(2 * i, 20 * i);
+        values.push_back({o.get_key(), i});
     }
 
-    for (size_t i = ndx; i < 7; ++i) {
-        const int64_t v1 = 2 * i;
-        const int64_t v2 = 20 * i;
-        CHECK_EQUAL(v1, table.get_int(0, i));
-        CHECK_EQUAL(v2, table.get_int(1, i));
+    for (auto val : values) {
+        const int64_t v1 = 2 * val.second;
+        const int64_t v2 = 20 * val.second;
+        Obj o = table.get_object(val.first);
+        CHECK_EQUAL(v1, o.get<Int>(0));
+        CHECK_EQUAL(v2, o.get<Int>(1));
     }
 
 #ifdef REALM_DEBUG
@@ -816,9 +802,7 @@ TEST(Table_StringOrBinaryTooBig)
     table.add_column(type_Binary, "b");
     table.add_column(type_Mixed, "m1");
     table.add_column(type_Mixed, "m2");
-    table.add_empty_row();
-
-    table.set_string(0, 0, "01234567");
+    table.create_object().set_all("01234567");
 
     size_t large_bin_size = 0xFFFFF1;
     size_t large_str_size = 0xFFFFF0; // null-terminate reduces max size by 1
@@ -850,7 +834,7 @@ TEST(Table_SetBinaryLogicErrors)
     TableRef table = group.add_table("table");
     table->add_column(type_Binary, "a");
     table->add_column(type_Int, "b");
-    table->add_empty_row();
+    table->create_object();
 
     BinaryData bd;
     CHECK_LOGIC_ERROR(table->set_binary(2, 0, bd), LogicError::column_index_out_of_range);
@@ -880,25 +864,25 @@ TEST(Table_Floats)
 
     // Test adding a single empty row
     // and filling it with values
-    size_t ndx = table.add_empty_row();
-    table.set_float(0, ndx, 1.12f);
-    table.set_double(1, ndx, 102.13);
+    Key k = table.create_object().set_all(1.12f, 102.13).get_key();
 
-    CHECK_EQUAL(1.12f, table.get_float(0, ndx));
-    CHECK_EQUAL(102.13, table.get_double(1, ndx));
+    Obj obj = table.get_object(k);
+    CHECK_EQUAL(1.12f, obj.get<float>(0));
+    CHECK_EQUAL(102.13, obj.get<double>(1));
 
     // Test adding multiple rows
-    ndx = table.add_empty_row(7);
-    for (size_t i = ndx; i < 7; ++i) {
-        table.set_float(0, i, 1.12f + 100 * i);
-        table.set_double(1, i, 102.13 * 200 * i);
+    std::vector<std::pair<Key, int>> values;
+    for (int i = 1; i < 7; ++i) {
+        Obj o = table.create_object().set_all(1.12f + 100 * i, 102.13 * 200 * i);
+        values.push_back({o.get_key(), i});
     }
 
-    for (size_t i = ndx; i < 7; ++i) {
-        const float v1 = 1.12f + 100 * i;
-        const double v2 = 102.13 * 200 * i;
-        CHECK_EQUAL(v1, table.get_float(0, i));
-        CHECK_EQUAL(v2, table.get_double(1, i));
+    for (auto val : values) {
+        const float v1 = 1.12f + 100 * val.second;
+        const double v2 = 102.13 * 200 * val.second;
+        Obj o = table.get_object(val.first);
+        CHECK_EQUAL(v1, o.get<float>(0));
+        CHECK_EQUAL(v2, o.get<double>(1));
     }
 
 #ifdef REALM_DEBUG
@@ -1101,7 +1085,7 @@ TEST(Table_GetName)
         Table table;
         DescriptorRef subdesc;
         table.add_column(type_Table, "sub", &subdesc);
-        table.add_empty_row();
+        table.create_object();
         TableRef subtab = table.get_subtable(0, 0);
         CHECK_EQUAL("", table.get_name());
         CHECK_EQUAL("", subtab->get_name());
@@ -1112,7 +1096,7 @@ TEST(Table_GetName)
         TableRef table = group.add_table("table");
         DescriptorRef subdesc;
         table->add_column(type_Table, "sub", &subdesc);
-        table->add_empty_row();
+        table->create_object();
         TableRef subtab = table->get_subtable(0, 0);
         CHECK_EQUAL("table", table->get_name());
         CHECK_EQUAL("", subtab->get_name());
@@ -1144,109 +1128,93 @@ void setup_multi_table(Table& table, size_t rows, size_t sub_rows, bool fixed_su
         sub1->add_column(type_String, "sub_second");
     }
 
-    table.add_empty_row(rows);
-
-    for (size_t i = 0; i < rows; ++i) {
-        int64_t sign = (i % 2 == 0) ? 1 : -1;
-        table.set_int(0, i, int64_t(i * sign));
-
-        if (i % 4 == 0) {
-            table.set_null(12, i);
-        }
-        else {
-            table.set_int(12, i, int64_t(i * sign));
-        }
-    }
-    for (size_t i = 0; i < rows; ++i)
-        table.set_bool(1, i, (i % 2 ? true : false));
-    for (size_t i = 0; i < rows; ++i)
-        table.set_olddatetime(2, i, 12345);
-    for (size_t i = 0; i < rows; ++i) {
-        int64_t sign = (i % 2 == 0) ? 1 : -1;
-        table.set_float(3, i, 123.456f * sign);
-    }
-    for (size_t i = 0; i < rows; ++i) {
-        int64_t sign = (i % 2 == 0) ? 1 : -1;
-        table.set_double(4, i, 9876.54321 * sign);
-    }
     std::vector<std::string> strings;
     for (size_t i = 0; i < rows; ++i) {
-        std::stringstream out;
-        out << "string" << i;
-        strings.push_back(out.str());
-    }
-    for (size_t i = 0; i < rows; ++i)
-        table.set_string(5, i, strings[i]);
-    for (size_t i = 0; i < rows; ++i) {
-        std::string str_i(strings[i] + " very long string.........");
-        table.set_string(6, i, str_i);
-    }
-    for (size_t i = 0; i < rows; ++i) {
+        Obj o = table.create_object();
+
+        int64_t sign = (i % 2 == 0) ? 1 : -1;
+        o.set(0, int64_t(i * sign));
+
+        if (i % 4 == 0) {
+            o.set_null(12);
+        }
+        else {
+            o.set(12, int64_t(i * sign));
+        }
+
+        o.set(1, (i % 2 ? true : false));
+        o.set<OldDateTime>(2, 12345);
+
+        o.set(3, 123.456f * sign);
+        o.set(4, 9876.54321 * sign);
+        {
+            std::stringstream out;
+            out << "string" << i;
+            strings.push_back(out.str());
+        }
+        o.set<String>(5, strings[i]);
+        {
+            std::string str_i(strings[i] + " very long string.........");
+            o.set<String>(6, str_i);
+        }
         switch (i % 2) {
             case 0: {
                 std::string s = strings[i];
                 s += " very long string.........";
                 for (int j = 0; j != 4; ++j)
                     s += " big blobs big blobs big blobs"; // +30
-                table.set_string(7, i, s);
+                o.set<String>(7, s);
                 break;
             }
             case 1:
-                table.set_string(7, i, "");
+                o.set<String>(7, "");
                 break;
         }
-    }
-    for (size_t i = 0; i < rows; ++i) {
         switch (i % 3) {
             case 0:
-                table.set_string(8, i, "enum1");
+                o.set<String>(8, "enum1");
                 break;
             case 1:
-                table.set_string(8, i, "enum2");
+                o.set<String>(8, "enum2");
                 break;
             case 2:
-                table.set_string(8, i, "enum3");
+                o.set<String>(8, "enum3");
                 break;
         }
-    }
-    for (size_t i = 0; i < rows; ++i)
-        table.set_binary(9, i, BinaryData("binary", 7));
-    for (size_t i = 0; i < rows; ++i) {
-        int64_t sign = (i % 2 == 0) ? 1 : -1;
-        size_t n = sub_rows;
-        if (!fixed_subtab_sizes)
-            n += i;
-        for (size_t j = 0; j != n; ++j) {
-            TableRef subtable = table.get_subtable(10, i);
-            int64_t val = -123 + i * j * 1234 * sign;
-            subtable->insert_empty_row(j);
-            subtable->set_int(0, j, val);
-            subtable->set_string(1, j, "sub");
+        o.set(9, BinaryData("binary", 7));
+        {
+            size_t n = sub_rows;
+            if (!fixed_subtab_sizes)
+                n += i;
+            for (size_t j = 0; j != n; ++j) {
+                TableRef subtable = table.get_subtable(10, i);
+                int64_t val = -123 + i * j * 1234 * sign;
+                subtable->insert_empty_row(j);
+                subtable->set_int(0, j, val);
+                subtable->set_string(1, j, "sub");
+            }
         }
-    }
-    for (size_t i = 0; i < rows; ++i) {
-        int64_t sign = (i % 2 == 0) ? 1 : -1;
         switch (i % 8) {
             case 0:
-                table.set_mixed(11, i, false);
+                o.set<Mixed>(11, false);
                 break;
             case 1:
-                table.set_mixed(11, i, int64_t(i * i * sign));
+                o.set<Mixed>(11, int64_t(i * i * sign));
                 break;
             case 2:
-                table.set_mixed(11, i, "string");
+                o.set<Mixed>(11, "string");
                 break;
             case 3:
-                table.set_mixed(11, i, OldDateTime(123456789));
+                o.set<Mixed>(11, OldDateTime(123456789));
                 break;
             case 4:
-                table.set_mixed(11, i, BinaryData("binary", 7));
+                o.set<Mixed>(11, BinaryData("binary", 7));
                 break;
             case 5: {
                 // Add subtable to mixed column
                 // We can first set schema and contents when the entire
                 // row has been inserted
-                table.set_mixed(11, i, Mixed::subtable_tag());
+                o.set<Mixed>(11, Mixed::subtable_tag());
                 TableRef subtable = table.get_subtable(11, i);
                 subtable->add_column(type_Int, "first");
                 subtable->add_column(type_String, "second");
@@ -1258,10 +1226,10 @@ void setup_multi_table(Table& table, size_t rows, size_t sub_rows, bool fixed_su
                 break;
             }
             case 6:
-                table.set_mixed(11, i, float(123.1 * i * sign));
+                o.set<Mixed>(11, float(123.1 * i * sign));
                 break;
             case 7:
-                table.set_mixed(11, i, double(987.65 * i * sign));
+                o.set<Mixed>(11, double(987.65 * i * sign));
                 break;
         }
     }
@@ -1359,15 +1327,14 @@ TEST(Table_Optimize_SetIndex_Crash)
 {
     Table table;
     table.add_column(type_String, "first");
-    table.add_empty_row(3);
-    table.set_string(0, 0, "string0");
-    table.set_string(0, 1, "string1");
-    table.set_string(0, 2, "string1");
+    table.create_object().set(0, "string0");
+    table.create_object().set(0, "string1");
+    Key k = table.create_object().set(0, "string1").get_key();
 
     table.optimize();
     CHECK_NOT_EQUAL(0, table.get_descriptor()->get_num_unique_values(0));
 
-    table.set_string(0, 2, "string2");
+    table.get_object(k).set(0, "string2");
 
     table.add_search_index(0);
 
@@ -1414,7 +1381,7 @@ TEST(Table_DegenerateSubtableSearchAndAggregate)
         sub_2->add_column(type_Int, "i");
     }
 
-    parent.add_empty_row(); // Create a degenerate subtable
+    parent.create_object(); // Create a degenerate subtable
 
     ConstTableRef degen_child = parent.get_subtable(0, 0); // NOTE: Constness is essential here!!!
 
@@ -1535,6 +1502,7 @@ TEST(Table_DegenerateSubtableSearchAndAggregate)
     CHECK_EQUAL(0, res);
 }
 
+/*
 TEST(Table_Range)
 {
     Table table;
@@ -1554,6 +1522,7 @@ TEST(Table_Range)
     for (size_t i = 0; i < tv.size(); ++i)
         CHECK_EQUAL(int64_t(i + 5), tv.get_int(0, i));
 }
+*/
 
 TEST(Table_RangeConst)
 {

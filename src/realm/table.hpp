@@ -131,8 +131,11 @@ public:
     }
 
     template <typename U>
-    void set(size_t col_ndx, U&& value, bool is_default = false);
-    void set_null(size_t col_ndx, bool is_default = false);
+    Obj& set(size_t col_ndx, U value, bool is_default = false);
+    Obj& set_null(size_t col_ndx, bool is_default = false);
+
+    template <class Head, class... Tail>
+    Obj& set_all(Head v, Tail... tail);
 
 private:
     friend class Table;
@@ -141,6 +144,10 @@ private:
         : ConstObj(table, row_ndx, key)
     {
     }
+    template <class Val>
+    Obj& _set(size_t col_ndx, Val v);
+    template <class Head, class... Tail>
+    Obj& _set(size_t col_ndx, Head v, Tail... tail);
 };
 
 namespace _impl {
@@ -2200,6 +2207,18 @@ template<> size_t Table::set_unique<StringData>(size_t, size_t, StringData);
 template<> size_t Table::set_unique<null>(size_t, size_t, null);
 
 
+template <>
+inline void Table::set(size_t col_ndx, size_t ndx, int value, bool is_default)
+{
+    set(col_ndx, ndx, int_fast64_t(value), is_default);
+}
+
+template <>
+inline void Table::set(size_t col_ndx, size_t ndx, const char* str, bool is_default)
+{
+    set(col_ndx, ndx, StringData(str), is_default);
+}
+
 inline int64_t Table::get_int(size_t col_ndx, size_t ndx) const noexcept
 {
     if (is_nullable(col_ndx))
@@ -2318,7 +2337,6 @@ inline void Table::set_null_unique(size_t col_ndx, size_t ndx)
     set_unique(col_ndx, ndx, null());
 }
 
-
 inline ConstObj::ConstObj(const Table* table, Key key, size_t row_ndx)
     : m_table(const_cast<Table*>(table))
     , m_row_ndx(row_ndx)
@@ -2343,14 +2361,35 @@ U ConstObj::get(size_t col_ndx) const noexcept
 }
 
 template <typename U>
-void Obj::set(size_t col_ndx, U&& value, bool is_default)
+inline Obj& Obj::set(size_t col_ndx, U value, bool is_default)
 {
-    m_table->set<U>(col_ndx, m_row_ndx, std::forward<U>(value), is_default);
+    m_table->set<U>(col_ndx, m_row_ndx, value, is_default);
+    return *this;
 }
 
-inline void Obj::set_null(size_t col_ndx, bool is_default)
+inline Obj& Obj::set_null(size_t col_ndx, bool is_default)
 {
     m_table->set_null(col_ndx, m_row_ndx, is_default);
+    return *this;
+}
+
+template <class Val>
+inline Obj& Obj::_set(size_t col_ndx, Val v)
+{
+    return set(col_ndx, v);
+}
+
+template <class Head, class... Tail>
+inline Obj& Obj::_set(size_t col_ndx, Head v, Tail... tail)
+{
+    set(col_ndx, v);
+    return _set(col_ndx + 1, tail...);
+}
+
+template <class Head, class... Tail>
+inline Obj& Obj::set_all(Head v, Tail... tail)
+{
+    return _set(0, v, tail...);
 }
 
 class Table::Iterator {

@@ -3074,7 +3074,7 @@ void Table::set(size_t col_ndx, size_t ndx, int_fast64_t value, bool is_default)
         repl->set_int(this, col_ndx, ndx, value, is_default ? _impl::instr_SetDefault : _impl::instr_Set); // Throws
 }
 
-template<>
+template <>
 void Table::set(size_t col_ndx, size_t ndx, Timestamp value, bool is_default)
 {
     REALM_ASSERT_3(col_ndx, <, get_column_count());
@@ -6410,6 +6410,8 @@ void Table::dump_node_structure(std::ostream& out, int level) const
     }
 }
 
+#endif // LCOV_EXCL_STOP ignore debug functions
+
 void Table::user_assigned_keys(size_t from_ndx)
 {
     if (m_key_type != KeyType::user) {
@@ -6445,6 +6447,7 @@ Obj Table::create_object(util::Optional<realm::Key> key)
             throw LogicError(LogicError::table_has_no_key_column);
             break;
         case KeyType::assigned:
+            REALM_ASSERT(!key);
             if (m_keys.size() > row_ndx) {
                 size_t row_to_swap = m_keys.get(row_ndx);
                 swap_rows(row_ndx, row_to_swap);
@@ -6568,5 +6571,3 @@ Table::Iterator Table::end()
 {
     return Iterator(this, size());
 }
-
-#endif // LCOV_EXCL_STOP ignore debug functions
