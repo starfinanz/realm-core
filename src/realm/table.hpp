@@ -1573,78 +1573,6 @@ private:
     friend class Group;
 };
 
-inline ConstObj::ConstObj(const Table* table, Key key, size_t row_ndx)
-    : m_table(const_cast<Table*>(table))
-    , m_row_ndx(row_ndx)
-    , m_key(key)
-{
-}
-
-inline ConstObj::ConstObj(const Table* table, size_t row_ndx)
-    : ConstObj(table, table->get_key(row_ndx), row_ndx)
-{
-}
-
-inline ConstObj::ConstObj(const Table* table, Key key)
-    : ConstObj(table, key, table->get_row_ndx(key))
-{
-}
-
-template <typename U>
-U ConstObj::get(size_t col_ndx) const noexcept
-{
-    return m_table->get<U>(col_ndx, m_row_ndx);
-}
-
-template <typename U>
-void Obj::set(size_t col_ndx, U&& value, bool is_default)
-{
-    m_table->set<U>(col_ndx, m_row_ndx, std::forward<U>(value), is_default);
-}
-
-inline void Obj::set_null(size_t col_ndx, bool is_default)
-{
-    m_table->set_null(col_ndx, m_row_ndx, is_default);
-}
-
-class Table::Iterator {
-public:
-    typedef std::bidirectional_iterator_tag iterator_category;
-    typedef Obj value_type;
-    typedef ptrdiff_t difference_type;
-    typedef Obj* pointer;
-    typedef Obj& reference;
-
-    Iterator(Table* t, size_t ndx)
-        : m_table(t)
-        , m_row_ndx(ndx)
-    {
-    }
-    Obj operator*()
-    {
-        return Obj(m_table, m_row_ndx);
-    }
-    Iterator& operator++()
-    {
-        ++m_row_ndx;
-        return *this;
-    }
-    Iterator operator++(int)
-    {
-        Iterator tmp(*this);
-        ++m_row_ndx;
-        return tmp;
-    }
-    bool operator!=(const Iterator& rhs) const
-    {
-        return m_row_ndx != rhs.m_row_ndx;
-    }
-
-private:
-    Table* m_table;
-    size_t m_row_ndx;
-};
-
 class Table::Parent : public ArrayParent {
 public:
     ~Parent() noexcept override
@@ -2390,6 +2318,78 @@ inline void Table::set_null_unique(size_t col_ndx, size_t ndx)
     set_unique(col_ndx, ndx, null());
 }
 
+
+inline ConstObj::ConstObj(const Table* table, Key key, size_t row_ndx)
+    : m_table(const_cast<Table*>(table))
+    , m_row_ndx(row_ndx)
+    , m_key(key)
+{
+}
+
+inline ConstObj::ConstObj(const Table* table, size_t row_ndx)
+    : ConstObj(table, table->get_key(row_ndx), row_ndx)
+{
+}
+
+inline ConstObj::ConstObj(const Table* table, Key key)
+    : ConstObj(table, key, table->get_row_ndx(key))
+{
+}
+
+template <typename U>
+U ConstObj::get(size_t col_ndx) const noexcept
+{
+    return m_table->get<U>(col_ndx, m_row_ndx);
+}
+
+template <typename U>
+void Obj::set(size_t col_ndx, U&& value, bool is_default)
+{
+    m_table->set<U>(col_ndx, m_row_ndx, std::forward<U>(value), is_default);
+}
+
+inline void Obj::set_null(size_t col_ndx, bool is_default)
+{
+    m_table->set_null(col_ndx, m_row_ndx, is_default);
+}
+
+class Table::Iterator {
+public:
+    typedef std::bidirectional_iterator_tag iterator_category;
+    typedef Obj value_type;
+    typedef ptrdiff_t difference_type;
+    typedef Obj* pointer;
+    typedef Obj& reference;
+
+    Iterator(Table* t, size_t ndx)
+        : m_table(t)
+        , m_row_ndx(ndx)
+    {
+    }
+    Obj operator*()
+    {
+        return Obj(m_table, m_row_ndx);
+    }
+    Iterator& operator++()
+    {
+        ++m_row_ndx;
+        return *this;
+    }
+    Iterator operator++(int)
+    {
+        Iterator tmp(*this);
+        ++m_row_ndx;
+        return tmp;
+    }
+    bool operator!=(const Iterator& rhs) const
+    {
+        return m_row_ndx != rhs.m_row_ndx;
+    }
+
+private:
+    Table* m_table;
+    size_t m_row_ndx;
+};
 
 // This class groups together information about the target of a link column
 // This is not a valid link if the target table == nullptr
