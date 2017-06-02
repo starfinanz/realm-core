@@ -60,9 +60,9 @@ public:
     Table::RowExpr get(size_t link_ndx) noexcept;
 
     // Modifiers
-    void add(size_t target_row_ndx);
-    void insert(size_t link_ndx, size_t target_row_ndx);
-    void set(size_t link_ndx, size_t target_row_ndx);
+    void add(Key target_key);
+    void insert(size_t link_ndx, Key target_key);
+    void set(size_t link_ndx, Key target_key);
     /// Move the link at \a from_ndx such that it ends up at \a to_ndx. Other
     /// links are shifted as necessary in such a way that their order is
     /// preserved.
@@ -130,9 +130,9 @@ private:
     void detach();
     void set_origin_row_index(size_t row_ndx) noexcept;
 
-    void do_insert(size_t link_ndx, size_t target_row_ndx);
-    size_t do_set(size_t link_ndx, size_t target_row_ndx);
-    size_t do_remove(size_t link_ndx);
+    void do_insert(size_t link_ndx, Key target_key);
+    Key do_set(size_t link_ndx, Key target_key);
+    Key do_remove(size_t link_ndx);
     void do_clear(bool broken_reciprocal_backlinks);
 
     void do_nullify_link(size_t old_target_row_ndx);
@@ -285,11 +285,11 @@ inline Table::RowExpr LinkView::operator[](size_t link_ndx) noexcept
     return get(link_ndx);
 }
 
-inline void LinkView::add(size_t target_row_ndx)
+inline void LinkView::add(Key target_key)
 {
     REALM_ASSERT(is_attached());
     size_t ins_pos = (m_row_indexes.is_attached()) ? m_row_indexes.size() : 0;
-    insert(ins_pos, target_row_ndx);
+    insert(ins_pos, target_key);
 }
 
 inline size_t LinkView::find(size_t target_row_ndx, size_t start) const noexcept
@@ -364,9 +364,9 @@ inline Replication* LinkView::get_repl() noexcept
 // the non-public parts of LinkView.
 class _impl::LinkListFriend {
 public:
-    static void do_set(LinkView& list, size_t link_ndx, size_t target_row_ndx)
+    static void do_set(LinkView& list, size_t link_ndx, Key target_key)
     {
-        list.do_set(link_ndx, target_row_ndx);
+        list.do_set(link_ndx, target_key);
     }
 
     static void do_remove(LinkView& list, size_t link_ndx)
@@ -380,9 +380,9 @@ public:
         list.do_clear(broken_reciprocal_backlinks);
     }
 
-    static void do_insert(LinkView& list, size_t link_ndx, size_t target_row_ndx)
+    static void do_insert(LinkView& list, size_t link_ndx, Key target_key)
     {
-        list.do_insert(link_ndx, target_row_ndx);
+        list.do_insert(link_ndx, target_key);
     }
 
     static const LinkListColumn& get_origin_column(const LinkView& list)

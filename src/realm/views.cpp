@@ -149,7 +149,8 @@ SortDescriptor::Sorter::Sorter(std::vector<std::vector<const ColumnBase*>> const
                     is_null[row_ndx] = true;
                     break;
                 }
-                translated_index = link_col->get_link(translated_index);
+                Key k = link_col->get_link(translated_index);
+                translated_index = link_col->get_target_table().get_row_ndx(k);
             }
             translated_rows[row_ndx] = translated_index;
         }

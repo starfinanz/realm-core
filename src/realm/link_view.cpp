@@ -68,24 +68,26 @@ LinkViewRef LinkView::create_from_and_consume_patch(std::unique_ptr<HandoverPatc
 }
 
 
-void LinkView::insert(size_t link_ndx, size_t target_row_ndx)
+void LinkView::insert(size_t link_ndx, Key target_key)
 {
-    do_insert(link_ndx, target_row_ndx);
+    do_insert(link_ndx, target_key);
     if (Replication* repl = get_repl())
-        repl->link_list_insert(*this, link_ndx, target_row_ndx); // Throws
+        repl->link_list_insert(*this, link_ndx, target_key.value); // Throws
 }
 
 
-void LinkView::do_insert(size_t link_ndx, size_t target_row_ndx)
+void LinkView::do_insert(size_t link_ndx, Key target_key)
 {
     REALM_ASSERT(is_attached());
     REALM_ASSERT_7(m_row_indexes.is_attached(), ==, true, ||, link_ndx, ==, 0);
     REALM_ASSERT_7(m_row_indexes.is_attached(), ==, false, ||, link_ndx, <=, m_row_indexes.size());
-    REALM_ASSERT_3(target_row_ndx, <, m_origin_column->get_target_table().size());
+    REALM_ASSERT_3(m_origin_column->get_target_table().get_row_ndx(target_key), <,
+                   m_origin_column->get_target_table().size());
     typedef _impl::TableFriend tf;
     tf::bump_version(*m_origin_table);
 
     size_t origin_row_ndx = get_origin_row_index();
+    Key origin_key = m_origin_table->get_key(origin_row_ndx);
 
     // if there are no links yet, we have to create list
     if (!m_row_indexes.is_attached()) {
@@ -95,52 +97,53 @@ void LinkView::do_insert(size_t link_ndx, size_t target_row_ndx)
         m_row_indexes.init_from_parent();                                   // re-attach
     }
 
-    m_row_indexes.insert(link_ndx, target_row_ndx);                // Throws
-    m_origin_column->add_backlink(target_row_ndx, origin_row_ndx); // Throws
+    m_row_indexes.insert(link_ndx, target_key.value);      // Throws
+    m_origin_column->add_backlink(target_key, origin_key); // Throws
 }
 
 
-void LinkView::set(size_t link_ndx, size_t target_row_ndx)
+void LinkView::set(size_t link_ndx, Key target_key)
 {
     REALM_ASSERT(is_attached());
     REALM_ASSERT_7(m_row_indexes.is_attached(), ==, true, &&, link_ndx, <, m_row_indexes.size());
-    REALM_ASSERT_3(target_row_ndx, <, m_origin_column->get_target_table().size());
+    // REALM_ASSERT_3(target_row_ndx, <, m_origin_column->get_target_table().size());
 
     if (Replication* repl = get_repl())
-        repl->link_list_set(*this, link_ndx, target_row_ndx); // Throws
+        repl->link_list_set(*this, link_ndx, target_key.value); // Throws
 
-    size_t old_target_row_ndx = do_set(link_ndx, target_row_ndx); // Throws
+    Key old_target_key = do_set(link_ndx, target_key); // Throws
     if (m_origin_column->m_weak_links)
         return;
 
     Table& target_table = m_origin_column->get_target_table();
-    size_t num_remaining = target_table.get_num_strong_backlinks(old_target_row_ndx);
+    size_t num_remaining = target_table.get_num_strong_backlinks(old_target_key);
     if (num_remaining > 0)
         return;
 
     CascadeState::row target_row;
     target_row.table_ndx = target_table.get_index_in_group();
-    target_row.row_ndx = old_target_row_ndx;
+    target_row.key = old_target_key;
     CascadeState state;
     state.rows.push_back(target_row);
 
     typedef _impl::TableFriend tf;
-    tf::cascade_break_backlinks_to(target_table, old_target_row_ndx, state); // Throws
+    tf::cascade_break_backlinks_to(target_table, old_target_key, state);     // Throws
     tf::remove_backlink_broken_rows(target_table, state);                    // Throws
 }
 
 
 // Replication instruction 'link-list-set' calls this function directly.
-size_t LinkView::do_set(size_t link_ndx, size_t target_row_ndx)
+Key LinkView::do_set(size_t link_ndx, Key target_key)
 {
-    size_t old_target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
+    Key old_target_key = Key(m_row_indexes.get(link_ndx));
     size_t origin_row_ndx = get_origin_row_index();
-    m_origin_column->remove_backlink(old_target_row_ndx, origin_row_ndx); // Throws
-    m_origin_column->add_backlink(target_row_ndx, origin_row_ndx);        // Throws
-    m_row_indexes.set(link_ndx, target_row_ndx);                          // Throws
+    Key origin_key = m_origin_table->get_key(origin_row_ndx);
+    m_origin_column->remove_backlink(old_target_key, origin_key); // Throws
+    m_origin_column->add_backlink(target_key, origin_key);        // Throws
+    m_row_indexes.set(link_ndx, target_key.value);                // Throws
     typedef _impl::TableFriend tf;
     tf::bump_version(*m_origin_table);
-    return old_target_row_ndx;
+    return old_target_key;
 }
 
 
@@ -203,37 +206,38 @@ void LinkView::remove(size_t link_ndx)
     if (Replication* repl = get_repl())
         repl->link_list_erase(*this, link_ndx);  // Throws
 
-    size_t target_row_ndx = do_remove(link_ndx); // Throws
+    Key target_key = do_remove(link_ndx); // Throws
     if (m_origin_column->m_weak_links)
         return;
 
     Table& target_table = m_origin_column->get_target_table();
-    size_t num_remaining = target_table.get_num_strong_backlinks(target_row_ndx);
+    size_t num_remaining = target_table.get_num_strong_backlinks(target_key);
     if (num_remaining > 0)
         return;
 
     CascadeState::row target_row;
     target_row.table_ndx = target_table.get_index_in_group();
-    target_row.row_ndx = target_row_ndx;
+    target_row.key = target_key;
     CascadeState state;
     state.rows.push_back(target_row);
 
     typedef _impl::TableFriend tf;
-    tf::cascade_break_backlinks_to(target_table, target_row_ndx, state); // Throws
+    tf::cascade_break_backlinks_to(target_table, target_key, state);     // Throws
     tf::remove_backlink_broken_rows(target_table, state);                // Throws
 }
 
 
 // Replication instruction 'link-list-erase' calls this function directly.
-size_t LinkView::do_remove(size_t link_ndx)
+Key LinkView::do_remove(size_t link_ndx)
 {
-    size_t target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
+    Key target_key = Key(m_row_indexes.get(link_ndx));
     size_t origin_row_ndx = get_origin_row_index();
-    m_origin_column->remove_backlink(target_row_ndx, origin_row_ndx); // Throws
+    Key origin_key = m_origin_table->get_key(origin_row_ndx);
+    m_origin_column->remove_backlink(target_key, origin_key);         // Throws
     m_row_indexes.erase(link_ndx);                                    // Throws
     typedef _impl::TableFriend tf;
     tf::bump_version(*m_origin_table);
-    return target_row_ndx;
+    return target_key;
 }
 
 
@@ -254,6 +258,7 @@ void LinkView::clear()
     }
 
     size_t origin_row_ndx = get_origin_row_index();
+    Key origin_key = m_origin_table->get_key(origin_row_ndx);
     CascadeState state;
     state.stop_on_link_list_column = m_origin_column;
     state.stop_on_link_list_row_ndx = origin_row_ndx;
@@ -261,20 +266,20 @@ void LinkView::clear()
     typedef _impl::TableFriend tf;
     size_t num_links = m_row_indexes.size();
     for (size_t link_ndx = 0; link_ndx < num_links; ++link_ndx) {
-        size_t target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
-        m_origin_column->remove_backlink(target_row_ndx, origin_row_ndx); // Throws
+        Key target_key = Key(m_row_indexes.get(link_ndx));
+        m_origin_column->remove_backlink(target_key, origin_key); // Throws
         Table& target_table = m_origin_column->get_target_table();
-        size_t num_remaining = target_table.get_num_strong_backlinks(target_row_ndx);
+        size_t num_remaining = target_table.get_num_strong_backlinks(target_key);
         if (num_remaining > 0)
             continue;
         CascadeState::row target_row;
         target_row.table_ndx = target_table.get_index_in_group();
-        target_row.row_ndx = target_row_ndx;
+        target_row.key = target_key;
         auto i = std::upper_bound(state.rows.begin(), state.rows.end(), target_row);
         // This target row cannot already be in state.rows
         REALM_ASSERT(i == state.rows.begin() || i[-1] != target_row);
         state.rows.insert(i, target_row);
-        tf::cascade_break_backlinks_to(target_table, target_row_ndx, state); // Throws
+        tf::cascade_break_backlinks_to(target_table, target_key, state); // Throws
     }
 
     bool broken_reciprocal_backlinks = true;
@@ -288,11 +293,12 @@ void LinkView::clear()
 void LinkView::do_clear(bool broken_reciprocal_backlinks)
 {
     size_t origin_row_ndx = get_origin_row_index();
+    Key origin_key = m_origin_table->get_key(origin_row_ndx);
     if (!broken_reciprocal_backlinks && m_row_indexes.is_attached()) {
         size_t num_links = m_row_indexes.size();
         for (size_t link_ndx = 0; link_ndx < num_links; ++link_ndx) {
-            size_t target_row_ndx = to_size_t(m_row_indexes.get(link_ndx));
-            m_origin_column->remove_backlink(target_row_ndx, origin_row_ndx); // Throws
+            Key target_key = Key(m_row_indexes.get(link_ndx));
+            m_origin_column->remove_backlink(target_key, origin_key); // Throws
         }
     }
 

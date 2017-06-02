@@ -32,13 +32,12 @@ void LinkColumnBase::refresh_accessor_tree(size_t col_ndx, const Spec& spec)
 }
 
 
-void LinkColumnBase::check_cascade_break_backlinks_to(size_t target_table_ndx, size_t target_row_ndx,
-                                                      CascadeState& state)
+void LinkColumnBase::check_cascade_break_backlinks_to(size_t target_table_ndx, Key target_key, CascadeState& state)
 {
     // Stop if the target row was already visited
     CascadeState::row target_row;
     target_row.table_ndx = target_table_ndx;
-    target_row.row_ndx = target_row_ndx;
+    target_row.key = target_key;
     auto i = std::upper_bound(state.rows.begin(), state.rows.end(), target_row);
     bool already_seen = i != state.rows.begin() && i[-1] == target_row;
     if (already_seen)
@@ -47,13 +46,13 @@ void LinkColumnBase::check_cascade_break_backlinks_to(size_t target_table_ndx, s
     // Stop if there are any remaining strong links to this row (this scheme
     // fails to discover orphaned cycles)
     typedef _impl::TableFriend tf;
-    size_t num_remaining = tf::get_num_strong_backlinks(*m_target_table, target_row_ndx);
+    size_t num_remaining = tf::get_num_strong_backlinks(*m_target_table, target_key);
     if (num_remaining > 0)
         return;
 
     // Recurse
     state.rows.insert(i, target_row);                                       // Throws
-    tf::cascade_break_backlinks_to(*m_target_table, target_row_ndx, state); // Throws
+    tf::cascade_break_backlinks_to(*m_target_table, target_key, state);     // Throws
 }
 
 

@@ -192,7 +192,7 @@ public:
     BinaryData get_binary(size_t column_ndx, size_t row_ndx) const noexcept;
     Mixed get_mixed(size_t column_ndx, size_t row_ndx) const noexcept;
     DataType get_mixed_type(size_t column_ndx, size_t row_ndx) const noexcept;
-    size_t get_link(size_t column_ndx, size_t row_ndx) const noexcept;
+    Key get_link(size_t column_ndx, size_t row_ndx) const noexcept;
 
     // Links
     bool is_null_link(size_t column_ndx, size_t row_ndx) const noexcept;
@@ -478,7 +478,7 @@ public:
     void set_binary(size_t column_ndx, size_t row_ndx, BinaryData value);
     void set_mixed(size_t column_ndx, size_t row_ndx, Mixed value);
     void set_subtable(size_t column_ndx, size_t row_ndx, const Table* table);
-    void set_link(size_t column_ndx, size_t row_ndx, size_t target_row_ndx);
+    void set_link(size_t column_ndx, size_t row_ndx, Key target_key);
 
     // Subtables
     TableRef get_subtable(size_t column_ndx, size_t row_ndx);
@@ -1058,7 +1058,7 @@ inline size_t TableViewBase::get_subtable_size(size_t column_ndx, size_t row_ndx
     return m_table->get_subtable_size(column_ndx, to_size_t(real_ndx));
 }
 
-inline size_t TableViewBase::get_link(size_t column_ndx, size_t row_ndx) const noexcept
+inline Key TableViewBase::get_link(size_t column_ndx, size_t row_ndx) const noexcept
 {
     REALM_ASSERT_INDEX_AND_TYPE(column_ndx, row_ndx, type_Link);
 
@@ -1585,12 +1585,12 @@ inline void TableView::set_subtable(size_t column_ndx, size_t row_ndx, const Tab
     m_table->set_subtable(column_ndx, to_size_t(real_ndx), value);
 }
 
-inline void TableView::set_link(size_t column_ndx, size_t row_ndx, size_t target_row_ndx)
+inline void TableView::set_link(size_t column_ndx, size_t row_ndx, Key target_key)
 {
     REALM_ASSERT_INDEX_AND_TYPE(column_ndx, row_ndx, type_Link);
     const int64_t real_ndx = m_row_indexes.get(row_ndx);
     REALM_ASSERT(real_ndx != detached_ref);
-    m_table->set_link(column_ndx, to_size_t(real_ndx), target_row_ndx);
+    m_table->set_link(column_ndx, to_size_t(real_ndx), target_key);
 }
 
 inline void TableView::nullify_link(size_t column_ndx, size_t row_ndx)

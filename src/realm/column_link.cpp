@@ -28,10 +28,11 @@ using namespace realm;
 
 void LinkColumn::remove_backlinks(size_t row_ndx)
 {
+    Key origin_key = m_table->get_key(row_ndx);
     int_fast64_t value = LinkColumnBase::get(row_ndx);
     if (value != 0) {
-        size_t target_row_ndx = to_size_t(value - 1);
-        m_backlink_column->remove_one_backlink(target_row_ndx, row_ndx);
+        Key target_key = Key(value - 1);
+        m_backlink_column->remove_one_backlink(target_key, origin_key);
     }
 }
 
@@ -142,14 +143,15 @@ void LinkColumn::swap_rows(size_t row_ndx_1, size_t row_ndx_2)
 
 void LinkColumn::cascade_break_backlinks_to(size_t row_ndx, CascadeState& state)
 {
+    Key origin_key = m_table->get_key(row_ndx);
     int_fast64_t value = LinkColumnBase::get(row_ndx);
     bool value_is_null = value == 0;
     if (value_is_null)
         return;
 
     // Remove the reciprocal backlink at target_row_ndx that points to row_ndx
-    size_t target_row_ndx = to_size_t(value - 1);
-    m_backlink_column->remove_one_backlink(target_row_ndx, row_ndx);
+    Key target_key = Key(value - 1);
+    m_backlink_column->remove_one_backlink(target_key, origin_key);
 
     if (m_weak_links)
         return;
@@ -158,7 +160,7 @@ void LinkColumn::cascade_break_backlinks_to(size_t row_ndx, CascadeState& state)
 
     // Recurse on target row when appropriate
     size_t target_table_ndx = m_target_table->get_index_in_group();
-    check_cascade_break_backlinks_to(target_table_ndx, target_row_ndx, state); // Throws
+    check_cascade_break_backlinks_to(target_table_ndx, target_key, state); // Throws
 }
 
 
@@ -179,14 +181,15 @@ void LinkColumn::cascade_break_backlinks_to_all_rows(size_t num_rows, CascadeSta
         if (value_is_null)
             continue;
 
-        size_t target_row_ndx = to_size_t(value - 1);
-        check_cascade_break_backlinks_to(target_table_ndx, target_row_ndx, state); // Throws
+        Key target_key = Key(value - 1);
+        check_cascade_break_backlinks_to(target_table_ndx, target_key, state); // Throws
     }
 }
 
 
-void LinkColumn::do_nullify_link(size_t row_ndx, size_t)
+void LinkColumn::do_nullify_link(Key origin_key, Key /* old_target_key */)
 {
+    size_t row_ndx = m_table->get_row_ndx(origin_key);
     if (Replication* repl = get_root_array()->get_alloc().get_replication()) {
         repl->nullify_link(m_table, get_column_index(), row_ndx);
     }
@@ -208,14 +211,14 @@ void LinkColumn::verify(const Table& table, size_t col_ndx) const
     for (size_t i = 0; i != n; ++i) {
         if (is_null_link(i))
             continue;
-        size_t target_row_ndx = get_link(i);
+        Key target_key = get_link(i);
         typedef std::vector<BacklinkColumn::VerifyPair>::const_iterator iter;
         BacklinkColumn::VerifyPair search_value;
-        search_value.origin_row_ndx = i;
+        search_value.origin_key = m_table->get_key(i);
         std::pair<iter, iter> range = equal_range(pairs.begin(), pairs.end(), search_value);
         // Exactly one corresponding backlink must exist
         REALM_ASSERT(range.second - range.first == 1);
-        REALM_ASSERT_3(range.first->target_row_ndx, ==, target_row_ndx);
+        REALM_ASSERT_3(range.first->target_key.value, ==, target_key.value);
         ++backlinks_seen;
     }
 

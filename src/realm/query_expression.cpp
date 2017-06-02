@@ -22,11 +22,11 @@ namespace realm {
 
 void Columns<Link>::evaluate(size_t index, ValueBase& destination)
 {
-    std::vector<size_t> links = m_link_map.get_links(index);
-    Value<RowIndex> v = make_value_for_link<RowIndex>(m_link_map.only_unary_links(), links.size());
+    std::vector<Key> links = m_link_map.get_links(index);
+    Value<Key> v = make_value_for_link<Key>(m_link_map.only_unary_links(), links.size());
 
     for (size_t t = 0; t < links.size(); t++) {
-        v.m_storage.set(t, RowIndex(links[t]));
+        v.m_storage.set(t, links[t]);
     }
     destination.import(v);
 }
@@ -38,20 +38,22 @@ void Columns<SubTable>::evaluate(size_t index, ValueBase& destination)
     REALM_ASSERT(d);
 
     if (m_link_map.m_link_columns.size() > 0) {
-        std::vector<size_t> links = m_link_map.get_links(index);
+        std::vector<Key> links = m_link_map.get_links(index);
         auto sz = links.size();
 
         if (m_link_map.only_unary_links()) {
             ConstTableRef val;
             if (sz == 1) {
-                val = ConstTableRef(m_column->get_subtable_ptr(links[0]));
+                size_t row = m_link_map.target_table()->get_row_ndx(links[0]);
+                val = ConstTableRef(m_column->get_subtable_ptr(row));
             }
             d->init(false, 1, val);
         }
         else {
             d->init(true, sz);
             for (size_t t = 0; t < sz; t++) {
-                const Table* table = m_column->get_subtable_ptr(links[t]);
+                size_t row = m_link_map.target_table()->get_row_ndx(links[t]);
+                const Table* table = m_column->get_subtable_ptr(row);
                 d->m_storage.set(t, ConstTableRef(table));
             }
         }

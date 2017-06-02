@@ -60,9 +60,9 @@ TEST(ThreadSafety_LinkViewDestruction)
         table->add_empty_row();
         {
             LinkViewRef links = table->get_linklist(col_link, 0);
-            links->add(2);
-            links->add(1);
-            links->add(0);
+            links->add(Key(2));
+            links->add(Key(1));
+            links->add(Key(0));
         }
         table->add_empty_row();
         for (int i = 0; i < 10000; i++) {

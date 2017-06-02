@@ -713,8 +713,11 @@ void TableViewBase::do_sync()
         if (m_linked_row.is_attached()) {
             size_t linked_row_ndx = m_linked_row.get_index();
             size_t backlink_count = m_linked_column->get_backlink_count(linked_row_ndx);
-            for (size_t i = 0; i < backlink_count; i++)
-                m_row_indexes.add(m_linked_column->get_backlink(linked_row_ndx, i));
+            for (size_t i = 0; i < backlink_count; i++) {
+                Key key = m_linked_column->get_backlink(linked_row_ndx, i);
+                size_t row = m_table->get_row_ndx(key);
+                m_row_indexes.add(row);
+            }
         }
     }
     else {

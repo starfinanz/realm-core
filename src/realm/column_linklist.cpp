@@ -67,12 +67,13 @@ void LinkListColumn::erase_rows(size_t row_ndx, size_t num_rows_to_erase, size_t
     // Remove backlinks to the removed origin rows
     for (size_t i = 0; i < num_rows_to_erase; ++i) {
         if (ref_type ref = get_as_ref(row_ndx + i)) {
+            Key old_origin_key = m_table->get_key(row_ndx + i);
             if (!broken_reciprocal_backlinks) {
                 IntegerColumn link_list(get_alloc(), ref);
                 size_t n = link_list.size();
                 for (size_t j = 0; j < n; ++j) {
-                    size_t target_row_ndx = to_size_t(link_list.get(j));
-                    m_backlink_column->remove_one_backlink(target_row_ndx, row_ndx + i);
+                    Key target_key = Key(link_list.get(j));
+                    m_backlink_column->remove_one_backlink(target_key, old_origin_key);
                 }
             }
             Array::destroy_deep(ref, get_alloc());
@@ -110,11 +111,12 @@ void LinkListColumn::move_last_row_over(size_t row_ndx, size_t prior_num_rows, b
     // Remove backlinks to the removed origin row
     if (ref_type ref = get_as_ref(row_ndx)) {
         if (!broken_reciprocal_backlinks) {
+            Key old_origin_key = m_table->get_key(row_ndx);
             IntegerColumn link_list(get_alloc(), ref);
             size_t n = link_list.size();
             for (size_t i = 0; i < n; ++i) {
-                size_t target_row_ndx = to_size_t(link_list.get(i));
-                m_backlink_column->remove_one_backlink(target_row_ndx, row_ndx);
+                Key target_key = Key(link_list.get(i));
+                m_backlink_column->remove_one_backlink(target_key, old_origin_key);
             }
         }
         Array::destroy_deep(ref, get_alloc());
@@ -239,10 +241,10 @@ void LinkListColumn::cascade_break_backlinks_to__leaf(size_t row_ndx, const Arra
 
     size_t num_links = link_list_leaf.size();
     for (size_t i = 0; i < num_links; ++i) {
-        size_t target_row_ndx = to_size_t(link_list_leaf.get(i));
+        Key target_key = Key(link_list_leaf.get(i));
 
         // Remove the reciprocal backlink at target_row_ndx that points to row_ndx
-        m_backlink_column->remove_one_backlink(target_row_ndx, row_ndx);
+        m_backlink_column->remove_one_backlink(target_key, m_table->get_key(row_ndx));
 
         if (m_weak_links)
             continue;
@@ -250,7 +252,7 @@ void LinkListColumn::cascade_break_backlinks_to__leaf(size_t row_ndx, const Arra
             continue;
 
         // Recurse on target row when appropriate
-        check_cascade_break_backlinks_to(target_table_ndx, target_row_ndx, state); // Throws
+        check_cascade_break_backlinks_to(target_table_ndx, target_key, state); // Throws
     }
 }
 
@@ -298,10 +300,10 @@ void LinkListColumn::cascade_break_backlinks_to_all_rows__leaf(const Array& link
 
     size_t num_links = link_list_leaf.size();
     for (size_t i = 0; i < num_links; ++i) {
-        size_t target_row_ndx = to_size_t(link_list_leaf.get(i));
+        Key target_key = Key(link_list_leaf.get(i));
 
         // Recurse on target row when appropriate
-        check_cascade_break_backlinks_to(target_table_ndx, target_row_ndx, state); // Throws
+        check_cascade_break_backlinks_to(target_table_ndx, target_key, state); // Throws
     }
 }
 
@@ -319,23 +321,18 @@ bool LinkListColumn::compare_link_list(const LinkListColumn& c) const
 }
 
 
-void LinkListColumn::do_nullify_link(size_t row_ndx, size_t old_target_row_ndx)
+void LinkListColumn::do_nullify_link(Key origin_key, Key old_target_key)
 {
+    size_t row_ndx = m_table->get_row_ndx(origin_key);
     LinkViewRef links = get(row_ndx);
-    links->do_nullify_link(old_target_row_ndx);
+    links->do_nullify_link(old_target_key.value); // TODO: Should just be key
 }
 
 
-void LinkListColumn::do_update_link(size_t row_ndx, size_t old_target_row_ndx, size_t new_target_row_ndx)
+void LinkListColumn::do_swap_link(size_t row_ndx, Key target_key_1, Key target_key_2)
 {
     LinkViewRef links = get(row_ndx);
-    links->do_update_link(old_target_row_ndx, new_target_row_ndx);
-}
-
-void LinkListColumn::do_swap_link(size_t row_ndx, size_t target_row_ndx_1, size_t target_row_ndx_2)
-{
-    LinkViewRef links = get(row_ndx);
-    links->do_swap_link(target_row_ndx_1, target_row_ndx_2);
+    links->do_swap_link(target_key_1.value, target_key_2.value); // TODO: Should just be key
 }
 
 void LinkListColumn::unregister_linkview()
@@ -763,16 +760,18 @@ void LinkListColumn::verify(const Table& table, size_t col_ndx) const
     for (size_t i = 0; i != n; ++i) {
         ConstLinkViewRef link_list = get(i);
         link_list->verify(i);
-        std::multiset<size_t> links_1, links_2;
+        std::multiset<Key> links_1, links_2;
         size_t m = link_list->size();
-        for (size_t j = 0; j < m; ++j)
-            links_1.insert(link_list->get(j).get_index());
+        for (size_t j = 0; j < m; ++j) {
+            auto row = link_list->get(j);
+            links_1.insert(row.get_table()->get_key(row.get_index()));
+        }
         typedef std::vector<BacklinkColumn::VerifyPair>::const_iterator iter;
         BacklinkColumn::VerifyPair search_value;
-        search_value.origin_row_ndx = i;
+        search_value.origin_key = m_table->get_key(i);
         std::pair<iter, iter> range = equal_range(pairs.begin(), pairs.end(), search_value);
         for (iter j = range.first; j != range.second; ++j)
-            links_2.insert(j->target_row_ndx);
+            links_2.insert(j->target_key);
         REALM_ASSERT(links_1 == links_2);
         backlinks_seen += links_2.size();
     }

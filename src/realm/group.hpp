@@ -432,8 +432,8 @@ public:
             /// Index within group of a group-level table.
             size_t table_ndx : std::numeric_limits<size_t>::digits - 1;
 
-            /// Row index which will be removed.
-            size_t row_ndx;
+            /// Obj which will be removed.
+            Key key;
 
             row()
                 : is_ordered_removal(0)
@@ -450,11 +450,11 @@ public:
         struct link {
             const Table* origin_table; ///< A group-level table.
             size_t origin_col_ndx;     ///< Link column being nullified.
-            size_t origin_row_ndx;     ///< Row in column being nullified.
+            Key origin_key;            ///< Key in column being nullified.
             /// The target row index which is being removed. Mostly relevant for
             /// LinkList (to know which entries are being removed), but also
             /// valid for Link.
-            size_t old_target_row_ndx;
+            Key old_target_key;
         };
 
         /// A sorted list of rows which will be removed by the current operation.
@@ -1355,7 +1355,7 @@ struct CascadeState : Group::CascadeNotification {
 
 inline bool Group::CascadeNotification::row::operator==(const row& r) const noexcept
 {
-    return table_ndx == r.table_ndx && row_ndx == r.row_ndx;
+    return table_ndx == r.table_ndx && key == r.key;
 }
 
 inline bool Group::CascadeNotification::row::operator!=(const row& r) const noexcept
@@ -1365,7 +1365,7 @@ inline bool Group::CascadeNotification::row::operator!=(const row& r) const noex
 
 inline bool Group::CascadeNotification::row::operator<(const row& r) const noexcept
 {
-    return table_ndx < r.table_ndx || (table_ndx == r.table_ndx && row_ndx < r.row_ndx);
+    return table_ndx < r.table_ndx || (table_ndx == r.table_ndx && key.value < r.key.value);
 }
 
 } // namespace realm

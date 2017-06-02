@@ -301,7 +301,7 @@ size_t Table::get_backlink_count(size_t row_ndx, const Table& origin, size_t ori
 }
 
 
-size_t Table::get_backlink(size_t row_ndx, const Table& origin, size_t origin_col_ndx, size_t backlink_ndx) const
+Key Table::get_backlink(size_t row_ndx, const Table& origin, size_t origin_col_ndx, size_t backlink_ndx) const
     noexcept
 {
     size_t origin_table_ndx = origin.get_index_in_group();
@@ -322,28 +322,30 @@ void Table::connect_opposite_link_columns(size_t link_col_ndx, Table& target_tab
 }
 
 
-size_t Table::get_num_strong_backlinks(size_t row_ndx) const noexcept
+size_t Table::get_num_strong_backlinks(Key key) const noexcept
 {
     size_t sum = 0;
     size_t col_ndx_begin = m_spec.get_public_column_count();
     size_t col_ndx_end = m_cols.size();
+    size_t row = get_row_ndx(key);
     for (size_t i = col_ndx_begin; i < col_ndx_end; ++i) {
         const BacklinkColumn& backlink_col = get_column_backlink(i);
         const LinkColumnBase& link_col = backlink_col.get_origin_column();
         if (link_col.get_weak_links())
             continue;
-        sum += backlink_col.get_backlink_count(row_ndx);
+        sum += backlink_col.get_backlink_count(row);
     }
     return sum;
 }
 
 
-void Table::cascade_break_backlinks_to(size_t row_ndx, CascadeState& state)
+void Table::cascade_break_backlinks_to(Key target_key, CascadeState& state)
 {
     size_t num_cols = m_spec.get_column_count();
+    size_t row = get_row_ndx(target_key);
     for (size_t col_ndx = 0; col_ndx != num_cols; ++col_ndx) {
         ColumnBase& col = get_column_base(col_ndx);
-        col.cascade_break_backlinks_to(row_ndx, state); // Throws
+        col.cascade_break_backlinks_to(row, state); // Throws
     }
 }
 
@@ -372,11 +374,12 @@ void Table::remove_backlink_broken_rows(const CascadeState& cascade_state)
         Table& table = gf::get_table(group, i->table_ndx);
 
         bool broken_reciprocal_backlinks = true;
+        size_t row = get_row_ndx(i->key);
         if (is_move_last_over) {
-            table.do_move_last_over(i->row_ndx, broken_reciprocal_backlinks);
+            table.do_move_last_over(row, broken_reciprocal_backlinks);
         }
         else {
-            table.do_remove(i->row_ndx, broken_reciprocal_backlinks);
+            table.do_remove(row, broken_reciprocal_backlinks);
         }
     }
 }
@@ -1484,7 +1487,7 @@ ColumnBase* Table::create_column_accessor(ColumnType col_type, size_t col_ndx, s
             break;
         case col_type_BackLink:
             // Origin table will be set by group after entire table has been created
-            col = new BacklinkColumn(alloc, ref, col_ndx); // Throws
+            col = new BacklinkColumn(alloc, ref, this, col_ndx); // Throws
             break;
         case col_type_Timestamp:
             // Origin table will be set by group after entire table has been created
@@ -2209,17 +2212,18 @@ void Table::erase_row(size_t row_ndx, bool is_move_last_over)
     // Only group-level tables can have link columns
     REALM_ASSERT(table_ndx != realm::npos);
 
+    Key key = get_key(row_ndx);
     CascadeState::row row;
     row.is_ordered_removal = (is_move_last_over ? 0 : 1);
     row.table_ndx = table_ndx;
-    row.row_ndx = row_ndx;
+    row.key = key;
     CascadeState state;
     state.rows.push_back(row); // Throws
 
     if (Group* g = get_parent_group())
         state.track_link_nullifications = g->has_cascade_notification_handler();
 
-    cascade_break_backlinks_to(row_ndx, state); // Throws
+    cascade_break_backlinks_to(key, state); // Throws
 
     if (Group* g = get_parent_group())
         _impl::GroupFriend::send_cascade_notification(*g, state);
@@ -2297,10 +2301,11 @@ void Table::batch_erase_rows(const IntegerColumn& row_indexes, bool is_move_last
         int64_t v = row_indexes.get(i);
         if (v != detached_ref) {
             size_t row_ndx = to_size_t(v);
+            Key key = get_key(row_ndx);
             CascadeState::row row;
             row.is_ordered_removal = (is_move_last_over ? 0 : 1);
             row.table_ndx = table_ndx;
-            row.row_ndx = row_ndx;
+            row.key = key;
             state.rows.push_back(row); // Throws
         }
     }
@@ -2313,7 +2318,7 @@ void Table::batch_erase_rows(const IntegerColumn& row_indexes, bool is_move_last
     // Iterate over a copy of `rows` since cascading deletes mutate it
     auto rows_copy = state.rows;
     for (auto const& row : rows_copy) {
-        cascade_break_backlinks_to(row.row_ndx, state); // Throws
+        cascade_break_backlinks_to(row.key, state); // Throws
     }
 
     if (Group* g = get_parent_group())
@@ -2934,7 +2939,9 @@ Table::RowExpr Table::get(size_t col_ndx, size_t row_ndx) const noexcept
 {
     REALM_ASSERT_3(row_ndx, <, m_size);
     const LinkColumn& col = get_column_link(col_ndx);
-    return RowExpr(&col.get_target_table(), col.get_link(row_ndx));
+    Key key = col.get_link(row_ndx);
+    size_t row = get_link_target(col_ndx)->get_row_ndx(key);
+    return RowExpr(&col.get_target_table(), row);
 }
 
 template <>
@@ -3356,7 +3363,7 @@ size_t Table::do_find_unique(ColType& col, size_t ndx, T&& value, bool& conflict
         winner = ndx;
 
     adj_row_acc_merge_rows(ndx, winner);
-    move_last_over(ndx);
+    remove_object(get_key(ndx));
 
     return winner;
 }
@@ -3514,7 +3521,7 @@ DataType Table::get_mixed_type(size_t col_ndx, size_t ndx) const noexcept
 }
 
 
-size_t Table::get_link(size_t col_ndx, size_t row_ndx) const noexcept
+Key Table::get_link(size_t col_ndx, size_t row_ndx) const noexcept
 {
     REALM_ASSERT_3(row_ndx, <, m_size);
     const LinkColumn& col = get_column_link(col_ndx);
@@ -3529,7 +3536,7 @@ TableRef Table::get_link_target(size_t col_ndx) noexcept
 }
 
 
-void Table::set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx, bool is_default)
+void Table::set_link(size_t col_ndx, size_t row_ndx, Key target_key, bool is_default)
 {
     if (REALM_UNLIKELY(!is_attached()))
         throw LogicError(LogicError::detached_accessor);
@@ -3543,7 +3550,7 @@ void Table::set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx, bool
         throw LogicError(LogicError::column_index_out_of_range);
     LinkColumn& col = get_column_link(col_ndx);
     Table& target_table = col.get_target_table();
-    if (REALM_UNLIKELY(target_row_ndx != realm::npos && target_row_ndx >= target_table.size()))
+    if (REALM_UNLIKELY(target_key != realm::null_key && target_table.get_row_ndx(target_key) >= target_table.size()))
         throw LogicError(LogicError::target_row_index_out_of_range);
 
     // FIXME: There is still no proper check for column type mismatch. One
@@ -3553,30 +3560,30 @@ void Table::set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx, bool
     // type. Idea: Introduce `DataType ColumnBase::m_type`.
 
     if (Replication* repl = get_repl())
-        repl->set_link(this, col_ndx, row_ndx, target_row_ndx,
+        repl->set_link(this, col_ndx, row_ndx, target_key.value,
                        is_default ? _impl::instr_SetDefault : _impl::instr_Set); // Throws
 
-    size_t old_target_row_ndx = do_set_link(col_ndx, row_ndx, target_row_ndx); // Throws
-    if (old_target_row_ndx == realm::npos)
+    Key old_target_key = do_set_link(col_ndx, row_ndx, target_key); // Throws
+    if (old_target_key == realm::null_key)
         return;
 
     if (col.get_weak_links())
         return;
 
-    size_t num_remaining = target_table.get_num_strong_backlinks(old_target_row_ndx);
+    size_t num_remaining = target_table.get_num_strong_backlinks(old_target_key);
     if (num_remaining > 0)
         return;
 
     CascadeState::row target_row;
     target_row.table_ndx = target_table.get_index_in_group();
-    target_row.row_ndx = old_target_row_ndx;
+    target_row.key = old_target_key;
     CascadeState state;
     state.rows.push_back(target_row);
 
     if (Group* g = get_parent_group())
         state.track_link_nullifications = g->has_cascade_notification_handler();
 
-    target_table.cascade_break_backlinks_to(old_target_row_ndx, state); // Throws
+    target_table.cascade_break_backlinks_to(old_target_key, state); // Throws
 
     if (Group* g = get_parent_group())
         _impl::GroupFriend::send_cascade_notification(*g, state);
@@ -3586,13 +3593,13 @@ void Table::set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx, bool
 
 
 // Replication instruction 'set_link' calls this function directly.
-size_t Table::do_set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx)
+Key Table::do_set_link(size_t col_ndx, size_t row_ndx, Key target_key)
 {
     REALM_ASSERT_3(row_ndx, <, m_size);
     LinkColumn& col = get_column_link(col_ndx);
-    size_t old_target_row_ndx = col.set_link(row_ndx, target_row_ndx);
+    Key old_target_key = col.set_link(row_ndx, target_key);
     bump_version();
-    return old_target_row_ndx;
+    return old_target_key;
 }
 
 
@@ -5019,14 +5026,14 @@ void Table::to_json_row(size_t row_ndx, std::ostream& out, size_t link_depth,
                     ref_type lnk = clb.get_ref();
                     if ((link_depth == 0) || (link_depth == not_found &&
                                               std::find(followed.begin(), followed.end(), lnk) != followed.end())) {
-                        out << "\"" << cl.get_link(row_ndx) << "\"";
+                        out << "\"" << cl.get_link(row_ndx).value << "\"";
                         break;
                     }
                     else {
                         out << "[";
                         followed.push_back(clb.get_ref());
                         size_t new_depth = link_depth == not_found ? not_found : link_depth - 1;
-                        table.to_json_row(cl.get_link(row_ndx), out, new_depth, renames, followed);
+                        table.to_json_row(cl.get_link(row_ndx).value, out, new_depth, renames, followed);
                         out << "]";
                     }
                 }
@@ -5362,7 +5369,7 @@ void Table::to_string_row(size_t row_ndx, std::ostream& out, const std::vector<s
             }
             case type_Link:
                 // FIXME: print linked row
-                out << get_link(col, row_ndx);
+                out << get_link(col, row_ndx).value;
                 break;
             case type_LinkList:
                 // FIXME: print number of links in list
@@ -6337,7 +6344,7 @@ void Table::print() const
                     break;
                 }
                 case col_type_Link: {
-                    size_t value = get_link(n, i);
+                    auto value = get_link(n, i).value;
                     std::cout << std::setw(10) << value << " ";
                     break;
                 }

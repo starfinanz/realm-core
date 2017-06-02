@@ -1576,13 +1576,13 @@ struct LinkMapFunction {
     // not you want the LinkMapFunction to exit (return false) or continue (return true) harvesting the link tree
     // for the current main table row index (it will be a link tree if you have multiple type_LinkList columns
     // in a link()->link() query.
-    virtual bool consume(size_t row_index) = 0;
+    virtual bool consume(Key key) = 0;
 };
 
 struct FindNullLinks : public LinkMapFunction {
-    bool consume(size_t row_index) override
+    bool consume(Key key) override
     {
-        static_cast<void>(row_index);
+        static_cast<void>(key);
         m_has_link = true;
         return false; // we've found a row index, so this can't be a null-link, so exit link harvesting
     }
@@ -1591,21 +1591,21 @@ struct FindNullLinks : public LinkMapFunction {
 };
 
 struct MakeLinkVector : public LinkMapFunction {
-    MakeLinkVector(std::vector<size_t>& result)
+    MakeLinkVector(std::vector<Key>& result)
         : m_links(result)
     {
     }
 
-    bool consume(size_t row_index) override
+    bool consume(Key key) override
     {
-        m_links.push_back(row_index);
+        m_links.push_back(key);
         return true; // continue evaluation
     }
-    std::vector<size_t>& m_links;
+    std::vector<Key>& m_links;
 };
 
 struct CountLinks : public LinkMapFunction {
-    bool consume(size_t) override
+    bool consume(Key) override
     {
         m_link_count++;
         return true;
@@ -1707,9 +1707,9 @@ public:
         }
     }
 
-    std::vector<size_t> get_links(size_t index)
+    std::vector<Key> get_links(size_t index)
     {
-        std::vector<size_t> res;
+        std::vector<Key> res;
         get_links(index, res);
         return res;
     }
@@ -1745,56 +1745,74 @@ public:
     std::vector<const ColumnBase*> m_link_columns;
 
 private:
+    void map_links(size_t column, Key key, LinkMapFunction& lm)
+    {
+        ColumnType type = m_link_types[column];
+        size_t row;
+        if (type == col_type_Link) {
+            const LinkColumn& cl = *static_cast<const LinkColumn*>(m_link_columns[column]);
+            row = cl.get_owning_table()->get_row_ndx(key);
+        }
+        else if (type == col_type_LinkList) {
+            const LinkListColumn& cll = *static_cast<const LinkListColumn*>(m_link_columns[column]);
+            row = cll.get_owning_table()->get_row_ndx(key);
+        }
+        else if (type == col_type_BackLink) {
+            const BacklinkColumn& bl = *static_cast<const BacklinkColumn*>(m_link_columns[column]);
+            row = bl.get_owning_table()->get_row_ndx(key);
+        }
+        map_links(column, row, lm);
+    }
     void map_links(size_t column, size_t row, LinkMapFunction& lm)
     {
         bool last = (column + 1 == m_link_columns.size());
         ColumnType type = m_link_types[column];
         if (type == col_type_Link) {
             const LinkColumn& cl = *static_cast<const LinkColumn*>(m_link_columns[column]);
-            size_t r = to_size_t(cl.get(row));
-            if (r == 0)
+            Key k = Key(cl.get(row) - 1); // LinkColumn stores key k as k.value + 1
+            if (k == realm::null_key)
                 return;
-            r--; // LinkColumn stores link to row N as N + 1
             if (last) {
-                bool continue2 = lm.consume(r);
+                bool continue2 = lm.consume(k);
                 if (!continue2)
                     return;
             }
-            else
-                map_links(column + 1, r, lm);
+            else {
+                map_links(column + 1, k, lm);
+            }
         }
         else if (type == col_type_LinkList) {
             const LinkListColumn& cll = *static_cast<const LinkListColumn*>(m_link_columns[column]);
             ConstLinkViewRef lvr = cll.get(row);
             for (size_t t = 0; t < lvr->size(); t++) {
-                size_t r = lvr->get(t).get_index();
+                Key k = Key(lvr->get(t).get_index());
                 if (last) {
-                    bool continue2 = lm.consume(r);
+                    bool continue2 = lm.consume(k);
                     if (!continue2)
                         return;
                 }
                 else
-                    map_links(column + 1, r, lm);
+                    map_links(column + 1, k, lm);
             }
         }
         else if (type == col_type_BackLink) {
             const BacklinkColumn& bl = *static_cast<const BacklinkColumn*>(m_link_columns[column]);
             size_t count = bl.get_backlink_count(row);
             for (size_t i = 0; i < count; ++i) {
-                size_t r = bl.get_backlink(row, i);
+                Key k = bl.get_backlink(row, i);
                 if (last) {
-                    bool continue2 = lm.consume(r);
+                    bool continue2 = lm.consume(k);
                     if (!continue2)
                         return;
                 }
                 else
-                    map_links(column + 1, r, lm);
+                    map_links(column + 1, k, lm);
             }
         }
     }
 
 
-    void get_links(size_t row, std::vector<size_t>& result)
+    void get_links(size_t row, std::vector<Key>& result)
     {
         MakeLinkVector mlv = MakeLinkVector(result);
         map_links(row, mlv);
@@ -1882,12 +1900,12 @@ public:
         size_t col = column_ndx();
 
         if (links_exist()) {
-            std::vector<size_t> links = m_link_map.get_links(index);
+            std::vector<Key> links = m_link_map.get_links(index);
             Value<T> v = make_value_for_link<T>(m_link_map.only_unary_links(), links.size());
 
             for (size_t t = 0; t < links.size(); t++) {
-                size_t link_to = links[t];
-                v.m_storage.set(t, m_link_map.target_table()->template get<T>(col, link_to));
+                size_t row = m_link_map.target_table()->get_row_ndx(links[t]);
+                v.m_storage.set(t, m_link_map.target_table()->template get<T>(col, row));
             }
             destination.import(v);
         }
@@ -2131,9 +2149,6 @@ public:
     size_t find_first(size_t start, size_t end) const override
     {
         for (; start < end;) {
-            std::vector<size_t> l = m_link_map.get_links(start);
-            // We have found a Link which is NULL, or LinkList with 0 entries. Return it as match.
-
             FindNullLinks fnl;
             m_link_map.map_links(start, fnl);
             if (fnl.m_has_link == has_links)
@@ -2940,11 +2955,12 @@ public:
 
     void evaluate(size_t index, ValueBase& destination) override
     {
-        std::vector<size_t> links = m_link_map.get_links(index);
-        std::sort(links.begin(), links.end());
+        std::vector<Key> links = m_link_map.get_links(index);
+        // std::sort(links.begin(), links.end());
 
-        size_t count = std::accumulate(links.begin(), links.end(), size_t(0), [this](size_t running_count, size_t link) {
-            return running_count + m_query.count(link, link + 1, 1);
+        size_t count = std::accumulate(links.begin(), links.end(), size_t(0), [this](size_t running_count, Key key) {
+            size_t row = m_link_map.target_table()->get_row_ndx(key);
+            return running_count + m_query.count(row, row + 1, 1);
         });
 
         destination.import(Value<Int>(false, 1, size_t(count)));

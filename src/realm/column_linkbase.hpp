@@ -46,6 +46,10 @@ public:
     bool get_weak_links() const noexcept;
     void set_weak_links(bool) noexcept;
 
+    const Table* get_owning_table() const noexcept
+    {
+        return m_table;
+    }
     Table& get_target_table() const noexcept;
     void set_target_table(Table&) noexcept;
     BacklinkColumn& get_backlink_column() const noexcept;
@@ -53,9 +57,8 @@ public:
 
     void swap_rows(size_t, size_t) override = 0;
 
-    virtual void do_nullify_link(size_t row_ndx, size_t old_target_row_ndx) = 0;
-    virtual void do_update_link(size_t row_ndx, size_t old_target_row_ndx, size_t new_target_row_ndx) = 0;
-    virtual void do_swap_link(size_t row_ndx, size_t target_row_ndx_1, size_t target_row_ndx_2) = 0;
+    virtual void do_nullify_link(Key origin_key, Key old_target_key) = 0;
+    virtual void do_swap_link(size_t row_ndx, Key target_key_1, Key target_key_2) = 0;
 
     void adj_acc_insert_rows(size_t, size_t) noexcept override;
     void adj_acc_erase_row(size_t) noexcept override;
@@ -80,7 +83,7 @@ protected:
     /// Call Table::cascade_break_backlinks_to() for the specified target row if
     /// it is not already in \a state.rows, and the number of strong links to it
     /// has dropped to zero.
-    void check_cascade_break_backlinks_to(size_t target_table_ndx, size_t target_row_ndx, CascadeState& state);
+    void check_cascade_break_backlinks_to(size_t target_table_ndx, Key target_key, CascadeState& state);
 };
 
 

@@ -73,6 +73,11 @@ struct Key {
         : value(val)
     {
     }
+    Key& operator=(int64_t val)
+    {
+        value = val;
+        return *this;
+    }
     bool operator==(const Key& rhs) const
     {
         return value == rhs.value;
@@ -80,6 +85,10 @@ struct Key {
     bool operator!=(const Key& rhs) const
     {
         return value != rhs.value;
+    }
+    bool operator<(const Key& rhs) const
+    {
+        return value < rhs.value;
     }
     int64_t value;
 };
@@ -133,6 +142,7 @@ public:
     template <typename U>
     Obj& set(size_t col_ndx, U value, bool is_default = false);
     Obj& set_null(size_t col_ndx, bool is_default = false);
+    Obj set_int_unique(size_t col_ndx, int_fast64_t value);
 
     template <class Head, class... Tail>
     Obj& set_all(Head v, Tail... tail);
@@ -518,7 +528,7 @@ public:
     template <class T>
     T get(size_t c, size_t r) const noexcept;
 
-    size_t get_link(size_t column_ndx, size_t row_ndx) const noexcept;
+    Key get_link(size_t column_ndx, size_t row_ndx) const noexcept;
     bool is_null_link(size_t column_ndx, size_t row_ndx) const noexcept;
     LinkViewRef get_linklist(size_t column_ndx, size_t row_ndx);
     ConstLinkViewRef get_linklist(size_t column_ndx, size_t row_ndx) const;
@@ -615,7 +625,7 @@ public:
     size_t set_string_unique(size_t column_ndx, size_t row_ndx, StringData value);
     void set_binary(size_t column_ndx, size_t row_ndx, BinaryData value, bool is_default = false);
     void set_mixed(size_t column_ndx, size_t row_ndx, Mixed value, bool is_default = false);
-    void set_link(size_t column_ndx, size_t row_ndx, size_t target_row_ndx, bool is_default = false);
+    void set_link(size_t column_ndx, size_t row_ndx, Key target_key, bool is_default = false);
     void nullify_link(size_t column_ndx, size_t row_ndx);
     void set_null(size_t column_ndx, size_t row_ndx, bool is_default = false);
     void set_null_unique(size_t col_ndx, size_t row_ndx);
@@ -653,8 +663,7 @@ public:
 
     // Backlinks
     size_t get_backlink_count(size_t row_ndx, const Table& origin, size_t origin_col_ndx) const noexcept;
-    size_t get_backlink(size_t row_ndx, const Table& origin, size_t origin_col_ndx, size_t backlink_ndx) const
-        noexcept;
+    Key get_backlink(size_t row_ndx, const Table& origin, size_t origin_col_ndx, size_t backlink_ndx) const noexcept;
 
 
     //@{
@@ -1081,7 +1090,7 @@ private:
     void do_swap_rows(size_t row_ndx_1, size_t row_ndx_2);
     void do_merge_rows(size_t row_ndx, size_t new_row_ndx);
     void do_clear(bool broken_reciprocal_backlinks);
-    size_t do_set_link(size_t col_ndx, size_t row_ndx, size_t target_row_ndx);
+    Key do_set_link(size_t col_ndx, size_t row_ndx, Key target_key);
     template <class ColType, class T>
     size_t do_find_unique(ColType& col, size_t ndx, T&& value, bool& conflict);
     template <class ColType>
@@ -1336,7 +1345,7 @@ private:
 
     void connect_opposite_link_columns(size_t link_col_ndx, Table& target_table, size_t backlink_col_ndx) noexcept;
 
-    size_t get_num_strong_backlinks(size_t row_ndx) const noexcept;
+    size_t get_num_strong_backlinks(Key key) const noexcept;
 
     //@{
 
@@ -1411,7 +1420,7 @@ private:
     /// It is immaterial which table remove_backlink_broken_rows() is called on,
     /// as long it that table is in the same group as the removed rows.
 
-    void cascade_break_backlinks_to(size_t row_ndx, CascadeState& state);
+    void cascade_break_backlinks_to(Key target_key, CascadeState& state);
     void cascade_break_backlinks_to_all_rows(CascadeState& state);
     void remove_backlink_broken_rows(const CascadeState&);
 
@@ -2043,7 +2052,7 @@ inline const Table* Table::get_subtable_ptr(size_t col_ndx, size_t row_ndx) cons
 
 inline bool Table::is_null_link(size_t col_ndx, size_t row_ndx) const noexcept
 {
-    return get_link(col_ndx, row_ndx) == realm::npos;
+    return get_link(col_ndx, row_ndx) == realm::null_key;
 }
 
 inline ConstTableRef Table::get_link_target(size_t col_ndx) const noexcept
@@ -2059,7 +2068,7 @@ inline void Table::set_enum(size_t column_ndx, size_t row_ndx, E value)
 
 inline void Table::nullify_link(size_t col_ndx, size_t row_ndx)
 {
-    set_link(col_ndx, row_ndx, realm::npos);
+    set_link(col_ndx, row_ndx, realm::null_key);
 }
 
 inline TableRef Table::get_subtable(size_t column_ndx, size_t row_ndx)
@@ -2373,6 +2382,12 @@ inline Obj& Obj::set_null(size_t col_ndx, bool is_default)
     return *this;
 }
 
+inline Obj Obj::set_int_unique(size_t col_ndx, int_fast64_t value)
+{
+    size_t row = m_table->set_int_unique(col_ndx, m_row_ndx, value);
+    return Obj(m_table, row);
+}
+
 template <class Val>
 inline Obj& Obj::_set(size_t col_ndx, Val v)
 {
@@ -2606,19 +2621,19 @@ public:
         table.do_clear(broken_reciprocal_backlinks); // Throws
     }
 
-    static void do_set_link(Table& table, size_t col_ndx, size_t row_ndx, size_t target_row_ndx)
+    static void do_set_link(Table& table, size_t col_ndx, size_t row_ndx, Key target_key)
     {
-        table.do_set_link(col_ndx, row_ndx, target_row_ndx); // Throws
+        table.do_set_link(col_ndx, row_ndx, target_key); // Throws
     }
 
-    static size_t get_num_strong_backlinks(const Table& table, size_t row_ndx) noexcept
+    static size_t get_num_strong_backlinks(const Table& table, Key key) noexcept
     {
-        return table.get_num_strong_backlinks(row_ndx);
+        return table.get_num_strong_backlinks(key);
     }
 
-    static void cascade_break_backlinks_to(Table& table, size_t row_ndx, CascadeState& state)
+    static void cascade_break_backlinks_to(Table& table, Key target_key, CascadeState& state)
     {
-        table.cascade_break_backlinks_to(row_ndx, state); // Throws
+        table.cascade_break_backlinks_to(target_key, state); // Throws
     }
 
     static void remove_backlink_broken_rows(Table& table, const CascadeState& rows)

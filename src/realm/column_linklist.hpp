@@ -111,15 +111,14 @@ private:
 
     std::shared_ptr<LinkView> get_ptr(size_t row_ndx) const;
 
-    void do_nullify_link(size_t row_ndx, size_t old_target_row_ndx) override;
-    void do_update_link(size_t row_ndx, size_t old_target_row_ndx, size_t new_target_row_ndx) override;
-    void do_swap_link(size_t row_ndx, size_t target_row_ndx_1, size_t target_row_ndx_2) override;
+    void do_nullify_link(Key origin_key, Key old_target_key) override;
+    void do_swap_link(size_t row_ndx, Key target_key_1, Key target_key_2) override;
 
     void unregister_linkview();
     ref_type get_row_ref(size_t row_ndx) const noexcept;
     void set_row_ref(size_t row_ndx, ref_type new_ref);
-    void add_backlink(size_t target_row, size_t source_row);
-    void remove_backlink(size_t target_row, size_t source_row);
+    void add_backlink(Key target_key, Key origin_key);
+    void remove_backlink(Key target_key, Key origin_key);
 
     // ArrayParent overrides
     void update_child_ref(size_t child_ndx, ref_type new_ref) override;
@@ -228,14 +227,14 @@ inline void LinkListColumn::set_row_ref(size_t row_ndx, ref_type new_ref)
     LinkColumnBase::set(row_ndx, new_ref); // Throws
 }
 
-inline void LinkListColumn::add_backlink(size_t target_row, size_t source_row)
+inline void LinkListColumn::add_backlink(Key target_key, Key origin_key)
 {
-    m_backlink_column->add_backlink(target_row, source_row); // Throws
+    m_backlink_column->add_backlink(target_key, origin_key); // Throws
 }
 
-inline void LinkListColumn::remove_backlink(size_t target_row, size_t source_row)
+inline void LinkListColumn::remove_backlink(Key target_key, Key origin_key)
 {
-    m_backlink_column->remove_one_backlink(target_row, source_row); // Throws
+    m_backlink_column->remove_one_backlink(target_key, origin_key); // Throws
 }
 
 

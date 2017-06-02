@@ -36,7 +36,7 @@ namespace realm {
 /// there is a single link, a tagged ref encoding the origin row position.
 class BacklinkColumn : public IntegerColumn, public ArrayParent {
 public:
-    BacklinkColumn(Allocator&, ref_type, size_t col_ndx = npos);
+    BacklinkColumn(Allocator&, ref_type, Table* table, size_t col_ndx = npos);
     ~BacklinkColumn() noexcept override
     {
     }
@@ -45,16 +45,20 @@ public:
 
     bool has_backlinks(size_t row_ndx) const noexcept;
     size_t get_backlink_count(size_t row_ndx) const noexcept;
-    size_t get_backlink(size_t row_ndx, size_t backlink_ndx) const noexcept;
+    Key get_backlink(size_t row_ndx, size_t backlink_ndx) const noexcept;
 
-    void add_backlink(size_t row_ndx, size_t origin_row_ndx);
-    void remove_one_backlink(size_t row_ndx, size_t origin_row_ndx);
+    void add_backlink(Key target_key, Key origin_key);
+    void remove_one_backlink(Key target_key, Key origin_key);
     void remove_all_backlinks(size_t num_rows);
     void update_backlink(size_t row_ndx, size_t old_origin_row_ndx, size_t new_origin_row_ndx);
     void swap_backlinks(size_t row_ndx, size_t origin_row_ndx_1, size_t origin_row_ndx_2);
 
     void add_row();
 
+    const Table* get_owning_table() const noexcept
+    {
+        return m_table;
+    }
     // Link origination info
     Table& get_origin_table() const noexcept;
     void set_origin_table(Table&) noexcept;
@@ -86,7 +90,7 @@ public:
     void verify(const Table&, size_t) const override;
 #ifdef REALM_DEBUG
     struct VerifyPair {
-        size_t origin_row_ndx, target_row_ndx;
+        Key origin_key, target_key;
         bool operator<(const VerifyPair&) const noexcept;
     };
     void get_backlinks(std::vector<VerifyPair>&); // Sorts
@@ -100,6 +104,7 @@ protected:
     std::pair<ref_type, size_t> get_to_dot_parent(size_t) const override;
 
 private:
+    Table* m_table;
     TableRef m_origin_table;
     LinkColumnBase* m_origin_column = nullptr;
 
@@ -110,8 +115,9 @@ private:
 
 // Implementation
 
-inline BacklinkColumn::BacklinkColumn(Allocator& alloc, ref_type ref, size_t col_ndx)
+inline BacklinkColumn::BacklinkColumn(Allocator& alloc, ref_type ref, Table* table, size_t col_ndx)
     : IntegerColumn(alloc, ref, col_ndx) // Throws
+    , m_table(table)
 {
 }
 
@@ -227,7 +233,7 @@ inline void BacklinkColumn::bump_link_origin_table_version() noexcept
 
 inline bool BacklinkColumn::VerifyPair::operator<(const VerifyPair& p) const noexcept
 {
-    return origin_row_ndx < p.origin_row_ndx;
+    return origin_key < p.origin_key;
 }
 
 #endif // REALM_DEBUG
