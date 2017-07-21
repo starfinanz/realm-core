@@ -7768,6 +7768,10 @@ public:
     {
         return false;
     }
+    bool move_row(size_t, size_t)
+    {
+        return false;
+    }
     bool merge_rows(size_t, size_t)
     {
         return false;
